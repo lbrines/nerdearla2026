@@ -1,0 +1,18 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+if [ "$#" -ne 1 ]; then
+  printf 'usage: %s <operation>\n' "$0" >&2
+  exit 2
+fi
+
+case "$1" in
+  start|healthy-check|fault-on|verify|fault-off|reset|stop|record-ready)
+    printf 'Phase 0: operation "%s" is not implemented until Phase 3.\n' "$1" >&2
+    exit 1
+    ;;
+  *)
+    printf 'unknown operation: %s\n' "$1" >&2
+    exit 2
+    ;;
+esac
