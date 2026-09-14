@@ -1,2 +1,3 @@
-# Local Pi runtime state
+# Local agent runtime state
 .atl/
+.codegraph/
