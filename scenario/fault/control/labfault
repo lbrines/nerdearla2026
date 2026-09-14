@@ -1,0 +1,55 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "$SCRIPT_DIR/../../.." && pwd)"
+VERSIONS_FILE="$REPO_ROOT/versions.env"
+COMPOSE_FILE="$REPO_ROOT/scenario/compose.yaml"
+
+usage() {
+  printf 'usage: %s <on|off> <compose-project-name>\n' "$0" >&2
+  exit 2
+}
+
+if [ "$#" -ne 2 ]; then
+  usage
+fi
+
+COMMAND="$1"
+PROJECT_NAME="$2"
+case "$COMMAND" in
+  on|off) ;;
+  *) usage ;;
+esac
+
+compose_toxiproxy() {
+  docker compose --env-file "$VERSIONS_FILE" --file "$COMPOSE_FILE" --project-name "$PROJECT_NAME" \
+    exec --no-TTY toxiproxy /toxiproxy-cli "$@"
+}
+
+pricing_toxic_exists() {
+  local inspect_output
+
+  if ! inspect_output="$(compose_toxiproxy inspect pricing)"; then
+    printf 'labfault: could not inspect the pricing proxy.\n' >&2
+    exit 1
+  fi
+  printf '%s\n' "$inspect_output" | awk '$1 == "pricing-latency" { found = 1 } END { exit !found }'
+}
+
+remove_pricing_toxic_if_present() {
+  if pricing_toxic_exists; then
+    compose_toxiproxy toxic remove --toxicName pricing-latency pricing
+  fi
+}
+
+case "$COMMAND" in
+  on)
+    remove_pricing_toxic_if_present
+    compose_toxiproxy toxic add --type latency --downstream --toxicName pricing-latency --toxicity 1.0 \
+      --attribute latency=800 --attribute jitter=0 pricing
+    ;;
+  off)
+    remove_pricing_toxic_if_present
+    ;;
+esac
