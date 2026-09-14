@@ -9,7 +9,8 @@ The authoritative technical contract is [`Especificacion_Lab.md`](Especificacion
 ## Current status
 
 - Phase 0 is complete: repository scaffold, Make interface, version pins, and test placeholders.
-- Phase 1 is next: healthy pricing, checkout, gateway, and load-generator services.
+- Phase 1 is complete: healthy pricing, checkout, gateway, and load-generator services; verify with `./tests/healthy.sh`.
+- Phase 2 is next: fault injection.
 - OpenCode CLI is the investigation assistant.
 - OpenCode is not a functional dependency of the lab itself.
 

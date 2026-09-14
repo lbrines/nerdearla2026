@@ -1,11 +1,11 @@
 # Lab de Troubleshooting
 
-**Estado: Phase 0 — scaffold y contrato.**
+**Estado: Phase 1 — servicios sanos completa. Phase 2 — inyección de fallas es la siguiente.**
 
-La autoridad técnica del lab es [Especificacion_Lab.md](Especificacion_Lab.md). Esta fase solo define la interfaz inicial, los pins de versión y placeholders que fallan explícitamente; no inicia servicios ni simula incidentes.
+La autoridad técnica del lab es [Especificacion_Lab.md](Especificacion_Lab.md).
 
-## Camino rápido actual
+## Verificación sana
 
 ```bash
-make help
+./tests/healthy.sh
 ```

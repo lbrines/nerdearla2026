@@ -1,0 +1,93 @@
+services:
+  pricing-api:
+    build:
+      context: ..
+      dockerfile: scenario/services/pricing/Dockerfile
+      args:
+        GO_VERSION: ${GO_VERSION}
+    ports:
+      - "127.0.0.1:18080:8080"
+    networks:
+      - operator_net
+
+  checkout-1:
+    build:
+      context: ..
+      dockerfile: scenario/services/checkout/Dockerfile
+      args:
+        GO_VERSION: ${GO_VERSION}
+    environment:
+      CHECKOUT_INSTANCE: checkout-1
+      PRICING_UPSTREAM_URL: http://pricing-api:8080
+    ports:
+      - "127.0.0.1:18081:8080"
+    networks:
+      - operator_net
+    depends_on:
+      - pricing-api
+
+  checkout-2:
+    build:
+      context: ..
+      dockerfile: scenario/services/checkout/Dockerfile
+      args:
+        GO_VERSION: ${GO_VERSION}
+    environment:
+      CHECKOUT_INSTANCE: checkout-2
+      PRICING_UPSTREAM_URL: http://pricing-api:8080
+    ports:
+      - "127.0.0.1:18082:8080"
+    networks:
+      - operator_net
+    depends_on:
+      - pricing-api
+
+  checkout-3:
+    build:
+      context: ..
+      dockerfile: scenario/services/checkout/Dockerfile
+      args:
+        GO_VERSION: ${GO_VERSION}
+    environment:
+      CHECKOUT_INSTANCE: checkout-3
+      PRICING_UPSTREAM_URL: http://pricing-api:8080
+    ports:
+      - "127.0.0.1:18083:8080"
+    networks:
+      - operator_net
+    depends_on:
+      - pricing-api
+
+  checkout-gateway:
+    build:
+      context: ..
+      dockerfile: scenario/services/gateway/Dockerfile
+      args:
+        GO_VERSION: ${GO_VERSION}
+    environment:
+      CHECKOUT_BACKEND_URLS: http://checkout-1:8080,http://checkout-2:8080,http://checkout-3:8080
+    ports:
+      - "127.0.0.1:18084:8080"
+    networks:
+      - operator_net
+    depends_on:
+      - checkout-1
+      - checkout-2
+      - checkout-3
+
+  load-generator:
+    build:
+      context: ..
+      dockerfile: scenario/services/loadgen/Dockerfile
+      args:
+        GO_VERSION: ${GO_VERSION}
+    environment:
+      LOADGEN_TARGET_URL: http://checkout-gateway:8080/checkout
+    networks:
+      - operator_net
+    depends_on:
+      - checkout-gateway
+
+networks:
+  operator_net:
+    driver: bridge
