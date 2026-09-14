@@ -1,6 +1,6 @@
 # Lab de Troubleshooting
 
-**Estado: Phase 1 — servicios sanos completa. Phase 2 — inyección de fallas es la siguiente.**
+**Estado: Phase 2 en progreso. La topología aislada y neutral de Toxiproxy está presente; la activación de la falla y la aceptación degradada siguen pendientes.**
 
 La autoridad técnica del lab es [Especificacion_Lab.md](Especificacion_Lab.md).
 

@@ -6,6 +6,7 @@ source "$SCRIPT_DIR/helpers.sh"
 trap on_exit EXIT
 
 verify_gateway_backends
+verify_rendered_pricing_routes
 if ! compose up --build --detach; then
   fail 'could not build and start the Phase 1 stack'
 fi
@@ -15,6 +16,7 @@ wait_for_health checkout-1 http://127.0.0.1:18081/healthz
 wait_for_health checkout-2 http://127.0.0.1:18082/healthz
 wait_for_health checkout-3 http://127.0.0.1:18083/healthz
 wait_for_health checkout-gateway http://127.0.0.1:18084/healthz
+verify_runtime_topology
 
 pause_loadgen
 for ((request = 1; request <= 90; request++)); do

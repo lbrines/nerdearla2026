@@ -9,6 +9,15 @@ services:
       - "127.0.0.1:18080:8080"
     networks:
       - operator_net
+      - fault_net
+
+  toxiproxy:
+    image: ghcr.io/shopify/toxiproxy:${TOXIPROXY_VERSION}
+    command: ["-host=0.0.0.0", "-config", "/config/neutral.json"]
+    volumes:
+      - ./fault/toxiproxy/neutral.json:/config/neutral.json:ro
+    networks:
+      - fault_net
 
   checkout-1:
     build:
@@ -50,13 +59,15 @@ services:
         GO_VERSION: ${GO_VERSION}
     environment:
       CHECKOUT_INSTANCE: checkout-3
-      PRICING_UPSTREAM_URL: http://pricing-api:8080
+      PRICING_UPSTREAM_URL: http://toxiproxy:8666
     ports:
       - "127.0.0.1:18083:8080"
     networks:
       - operator_net
+      - fault_net
     depends_on:
       - pricing-api
+      - toxiproxy
 
   checkout-gateway:
     build:
@@ -90,4 +101,6 @@ services:
 
 networks:
   operator_net:
+    driver: bridge
+  fault_net:
     driver: bridge
