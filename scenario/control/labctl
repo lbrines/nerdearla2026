@@ -5,6 +5,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
 COMPOSE_FILE="$REPO_ROOT/scenario/compose.yaml"
 VERSIONS_FILE="$REPO_ROOT/versions.env"
+LABFAULT="$REPO_ROOT/scenario/fault/control/labfault"
 COMPOSE_PROJECT_NAME="nerdearla2026"
 HEALTH_TIMEOUT_SECONDS=60
 
@@ -33,6 +34,24 @@ wait_for_200() {
     fi
     sleep 1
   done
+}
+
+expect_status() {
+  local name="$1"
+  local expected="$2"
+  local request_id="$3"
+  local url="$4"
+  local status
+
+  if ! status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 2 \
+    -H "X-Request-ID: $request_id" "$url")"; then
+    fail "$name request failed"
+    return 1
+  fi
+  if [ "$status" != "$expected" ]; then
+    fail "$name returned $status; want $expected"
+    return 1
+  fi
 }
 
 neutral_proxy_present() {
@@ -76,8 +95,204 @@ healthy_check() {
   wait_for_neutral_proxy "$deadline"
 }
 
+verify_timeout_debug() {
+  local request_id="$1"
+  local response elapsed_ms
+
+  if ! response="$(curl --silent --show-error --fail --max-time 2 \
+    -H "X-Request-ID: $request_id" http://127.0.0.1:18083/debug/upstream)"; then
+    fail 'checkout-3 debug upstream request failed'
+    return 1
+  fi
+  case "$response" in
+    *'"outcome":"timeout"'*) ;;
+    *)
+      fail "checkout-3 debug outcome is not timeout: $response"
+      return 1
+      ;;
+  esac
+  elapsed_ms="$(printf '%s\n' "$response" | awk -F'"elapsed_ms":' 'NF == 2 { print $2 }' | tr -d '}[:space:]')"
+  if ! [[ "$elapsed_ms" =~ ^[0-9]+$ ]] || [ "$elapsed_ms" -lt 480 ]; then
+    fail "checkout-3 debug elapsed_ms is ${elapsed_ms:-missing}; want at least 480"
+    return 1
+  fi
+}
+
+verify_degraded_direct() {
+  expect_status checkout-3 504 degraded-checkout-3 http://127.0.0.1:18083/checkout
+  verify_timeout_debug degraded-checkout-3-debug
+  expect_status pricing-api 200 degraded-pricing http://127.0.0.1:18080/healthz
+}
+
+verify_controlled_window() {
+  local state="$1"
+  local request status successes=0 timeouts=0
+
+  for ((request = 1; request <= 90; request++)); do
+    if ! status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 2 \
+      -H "X-Request-ID: verify-$state-$request" http://127.0.0.1:18084/checkout)"; then
+      fail "gateway request $request failed"
+      return 1
+    fi
+    case "$status" in
+      200) successes=$((successes + 1)) ;;
+      504) timeouts=$((timeouts + 1)) ;;
+      *)
+        fail "gateway request $request returned $status; want 200 or 504"
+        return 1
+        ;;
+    esac
+  done
+
+  case "$state" in
+    healthy)
+      if [ "$successes" -ne 90 ] || [ "$timeouts" -ne 0 ]; then
+        fail "healthy gateway results were 200=$successes 504=$timeouts; want 200=90 504=0"
+        return 1
+      fi
+      expect_status checkout-1 200 verify-healthy-checkout-1 http://127.0.0.1:18081/checkout || return $?
+      expect_status checkout-2 200 verify-healthy-checkout-2 http://127.0.0.1:18082/checkout || return $?
+      expect_status checkout-3 200 verify-healthy-checkout-3 http://127.0.0.1:18083/checkout || return $?
+      ;;
+    degraded)
+      if [ "$successes" -ne 60 ] || [ "$timeouts" -ne 30 ]; then
+        fail "degraded gateway results were 200=$successes 504=$timeouts; want 200=60 504=30"
+        return 1
+      fi
+      expect_status checkout-1 200 verify-degraded-checkout-1 http://127.0.0.1:18081/checkout || return $?
+      expect_status checkout-2 200 verify-degraded-checkout-2 http://127.0.0.1:18082/checkout || return $?
+      expect_status checkout-3 504 verify-degraded-checkout-3 http://127.0.0.1:18083/checkout || return $?
+      verify_timeout_debug verify-degraded-checkout-3-debug || return $?
+      ;;
+    *)
+      fail "unknown scenario state: $state"
+      return 1
+      ;;
+  esac
+  expect_status pricing-api 200 "verify-$state-pricing" http://127.0.0.1:18080/healthz || return $?
+}
+
+VERIFY_LOADGEN_STOPPED=0
+
+verify_restore_loadgen() {
+  local restoration_status
+
+  if [ "$VERIFY_LOADGEN_STOPPED" -ne 1 ]; then
+    return 0
+  fi
+  VERIFY_LOADGEN_STOPPED=0
+  if compose start load-generator; then
+    return 0
+  else
+    restoration_status=$?
+  fi
+  printf 'labctl: could not restore load-generator after the controlled request sequence\n' >&2
+  return "$restoration_status"
+}
+
+verify_exit_restore() {
+  local primary_status="$1"
+  local restoration_status=0
+
+  trap - EXIT INT TERM
+  if verify_restore_loadgen; then
+    :
+  else
+    restoration_status=$?
+  fi
+  if [ "$restoration_status" -ne 0 ]; then
+    if [ "$primary_status" -eq 0 ]; then
+      printf 'labctl: verification passed, but load-generator restoration failed\n' >&2
+      return "$restoration_status"
+    fi
+    printf 'labctl: verification failed; load-generator restoration also failed\n' >&2
+  fi
+  return "$primary_status"
+}
+
+verify_interrupted() {
+  local signal="$1"
+  local signal_status="$2"
+
+  trap - EXIT INT TERM
+  if ! verify_restore_loadgen; then
+    printf 'labctl: verification interrupted by %s; load-generator restoration also failed\n' "$signal" >&2
+  fi
+  exit "$signal_status"
+}
+
+verify() {
+  local state running_services verification_status=0 restoration_status=0
+
+  VERIFY_LOADGEN_STOPPED=0
+  if ! state="$("$LABFAULT" status "$COMPOSE_PROJECT_NAME")"; then
+    fail 'could not query the fault state'
+    return 1
+  fi
+  case "$state" in
+    healthy|degraded) ;;
+    *)
+      fail "unknown scenario state: $state"
+      return 1
+      ;;
+  esac
+  if ! running_services="$(compose ps --status running --services load-generator)"; then
+    fail 'could not inspect load-generator state'
+    return 1
+  fi
+  case "$running_services" in
+    load-generator)
+      if ! compose stop load-generator; then
+        fail 'could not stop load-generator before the controlled request sequence'
+        return 1
+      fi
+      VERIFY_LOADGEN_STOPPED=1
+      trap 'verify_exit_restore "$?"' EXIT
+      trap 'verify_interrupted INT 130' INT
+      trap 'verify_interrupted TERM 143' TERM
+      ;;
+    '') ;;
+    *)
+      fail "unexpected load-generator state: $running_services"
+      return 1
+      ;;
+  esac
+
+  if verify_controlled_window "$state"; then
+    :
+  else
+    verification_status=$?
+  fi
+  if verify_restore_loadgen; then
+    :
+  else
+    restoration_status=$?
+  fi
+  trap - EXIT INT TERM
+  if [ "$verification_status" -ne 0 ]; then
+    if [ "$restoration_status" -ne 0 ]; then
+      printf 'labctl: verification failed; load-generator restoration also failed\n' >&2
+    fi
+    return "$verification_status"
+  fi
+  if [ "$restoration_status" -ne 0 ]; then
+    printf 'labctl: verification passed, but load-generator restoration failed\n' >&2
+    return "$restoration_status"
+  fi
+}
+
 start() {
   compose up --build --detach
+  healthy_check
+}
+
+fault_on() {
+  "$LABFAULT" on "$COMPOSE_PROJECT_NAME"
+  verify_degraded_direct
+}
+
+fault_off() {
+  "$LABFAULT" off "$COMPOSE_PROJECT_NAME"
   healthy_check
 }
 
@@ -90,6 +305,10 @@ phase_3_placeholder() {
   return 1
 }
 
+if [ "${LABCTL_TEST_MODE:-}" = 1 ] && [ "${BASH_SOURCE[0]}" != "$0" ]; then
+  return 0
+fi
+
 if [ "$#" -ne 1 ]; then
   printf 'usage: %s <operation>\n' "$0" >&2
   exit 2
@@ -98,8 +317,11 @@ fi
 case "$1" in
   start) start ;;
   healthy-check) healthy_check ;;
+  fault-on) fault_on ;;
+  verify) verify ;;
+  fault-off) fault_off ;;
   stop) stop ;;
-  fault-on|verify|fault-off|reset|record-ready) phase_3_placeholder "$1" ;;
+  reset|record-ready) phase_3_placeholder "$1" ;;
   *)
     printf 'unknown operation: %s\n' "$1" >&2
     printf 'usage: %s <operation>\n' "$0" >&2

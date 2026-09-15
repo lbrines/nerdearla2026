@@ -74,6 +74,114 @@ expect_cleanup_status() {
   fi
 }
 
+expect_direct_failure_status() {
+  local status
+
+  if (
+    LABCTL_TEST_MODE=1
+    source "$REPO_ROOT/scenario/control/labctl"
+    curl() { printf '200'; }
+    expect_status() { [ "$1" != checkout-1 ]; }
+    verify_timeout_debug() { return 0; }
+    verify_controlled_window healthy
+  ); then
+    status=0
+  else
+    status=$?
+  fi
+  if [ "$status" -ne 1 ]; then
+    printf 'lifecycle acceptance failed: a failed direct check exited %s; want 1\n' "$status" >&2
+    return 1
+  fi
+}
+
+run_mock_verify() {
+  local running="$1"
+  local verification_status="$2"
+  local restoration_status="$3"
+  local signal="$4"
+
+  if MOCK_VERIFY_OUTPUT="$(
+    (
+      LABCTL_TEST_MODE=1
+      source "$REPO_ROOT/scenario/control/labctl"
+      VERIFY_TEST_RUNNING="$running"
+      VERIFY_TEST_STATUS="$verification_status"
+      VERIFY_TEST_RESTORATION_STATUS="$restoration_status"
+      VERIFY_TEST_SIGNAL="$signal"
+      LABFAULT=labfault
+      labfault() { printf 'healthy\n'; }
+      compose() {
+        if [ "$1" = ps ]; then
+          [ "$VERIFY_TEST_RUNNING" != running ] || printf 'load-generator\n'
+        elif [ "$1" = stop ]; then
+          printf 'mock: stop\n'
+        else
+          printf 'mock: start\n'
+          return "$VERIFY_TEST_RESTORATION_STATUS"
+        fi
+      }
+      verify_controlled_window() {
+        if [ -n "$VERIFY_TEST_SIGNAL" ]; then
+          sh -c 'kill "-$1" "$PPID"' sh "$VERIFY_TEST_SIGNAL"
+          sleep 0.1
+        fi
+        return "$VERIFY_TEST_STATUS"
+      }
+      verify
+    ) 2>&1
+  )"; then
+    MOCK_VERIFY_STATUS=0
+  else
+    MOCK_VERIFY_STATUS=$?
+  fi
+}
+
+expect_mock_verify() {
+  local name="$1"
+  local running="$2"
+  local verification_status="$3"
+  local restoration_status="$4"
+  local signal="$5"
+  local expected_status="$6"
+
+  run_mock_verify "$running" "$verification_status" "$restoration_status" "$signal"
+  if [ "$MOCK_VERIFY_STATUS" -ne "$expected_status" ]; then
+    printf 'lifecycle acceptance failed: %s exited %s; want %s\n' "$name" "$MOCK_VERIFY_STATUS" "$expected_status" >&2
+    return 1
+  fi
+  case "$running" in
+    stopped)
+      if [ -n "$MOCK_VERIFY_OUTPUT" ]; then
+        printf 'lifecycle acceptance failed: %s changed an initially stopped load-generator: %s\n' "$name" "$MOCK_VERIFY_OUTPUT" >&2
+        return 1
+      fi
+      ;;
+    running)
+      case "$MOCK_VERIFY_OUTPUT" in
+        *'mock: stop'*'mock: start'*) ;;
+        *)
+          printf 'lifecycle acceptance failed: %s did not restore the running load-generator: %s\n' "$name" "$MOCK_VERIFY_OUTPUT" >&2
+          return 1
+          ;;
+      esac
+      ;;
+  esac
+}
+
+expect_direct_failure_status
+expect_mock_verify initially-stopped stopped 0 0 '' 0
+expect_mock_verify running-restored running 0 0 '' 0
+expect_mock_verify term-restores running 0 0 TERM 143
+expect_mock_verify int-restores running 0 0 INT 130
+expect_mock_verify primary-failure-wins running 17 23 '' 17
+expect_mock_verify restoration-failure-status running 0 23 '' 23
+
+if [ "${LIFECYCLE_DETERMINISTIC_ONLY:-}" = 1 ]; then
+  printf 'lifecycle deterministic verification regressions passed.\n'
+  exit 0
+fi
+
 trap cleanup EXIT
 expect_cleanup_status 0 23
 expect_cleanup_status 17 17
@@ -82,12 +190,18 @@ make --directory "$REPO_ROOT" stop
 make --directory "$REPO_ROOT" start
 make --directory "$REPO_ROOT" healthy-check
 make --directory "$REPO_ROOT" start
+make --directory "$REPO_ROOT" verify
+make --directory "$REPO_ROOT" fault-on
+make --directory "$REPO_ROOT" fault-on
+make --directory "$REPO_ROOT" verify
+make --directory "$REPO_ROOT" fault-off
+make --directory "$REPO_ROOT" fault-off
 make --directory "$REPO_ROOT" stop
 make --directory "$REPO_ROOT" stop
 
-for operation in fault-on verify fault-off reset record-ready; do
+for operation in reset record-ready; do
   expect_placeholder "$operation"
 done
 expect_unknown
 
-printf 'lifecycle acceptance passed: fixed project start, healthy check, and stop are idempotent.\n'
+printf 'lifecycle acceptance passed: fixed-project healthy and degraded transitions are idempotent.\n'

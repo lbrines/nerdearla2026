@@ -7,7 +7,7 @@ VERSIONS_FILE="$REPO_ROOT/versions.env"
 COMPOSE_FILE="$REPO_ROOT/scenario/compose.yaml"
 
 usage() {
-  printf 'usage: %s <on|off> <compose-project-name>\n' "$0" >&2
+  printf 'usage: %s <on|off|status> <compose-project-name>\n' "$0" >&2
   exit 2
 }
 
@@ -18,7 +18,7 @@ fi
 COMMAND="$1"
 PROJECT_NAME="$2"
 case "$COMMAND" in
-  on|off) ;;
+  on|off|status) ;;
   *) usage ;;
 esac
 
@@ -51,5 +51,12 @@ case "$COMMAND" in
     ;;
   off)
     remove_pricing_toxic_if_present
+    ;;
+  status)
+    if pricing_toxic_exists; then
+      printf 'degraded\n'
+    else
+      printf 'healthy\n'
+    fi
     ;;
 esac
