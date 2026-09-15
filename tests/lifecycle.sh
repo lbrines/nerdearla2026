@@ -199,9 +199,7 @@ make --directory "$REPO_ROOT" fault-off
 make --directory "$REPO_ROOT" stop
 make --directory "$REPO_ROOT" stop
 
-for operation in reset record-ready; do
-  expect_placeholder "$operation"
-done
+expect_placeholder record-ready
 expect_unknown
 
 printf 'lifecycle acceptance passed: fixed-project healthy and degraded transitions are idempotent.\n'

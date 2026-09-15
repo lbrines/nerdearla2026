@@ -300,6 +300,11 @@ stop() {
   compose down --remove-orphans
 }
 
+reset() {
+  compose down --volumes --remove-orphans
+  start
+}
+
 phase_3_placeholder() {
   printf 'Phase 3 placeholder: operation "%s" is owned by a later Phase 3 review.\n' "$1" >&2
   return 1
@@ -320,8 +325,9 @@ case "$1" in
   fault-on) fault_on ;;
   verify) verify ;;
   fault-off) fault_off ;;
+  reset) reset ;;
   stop) stop ;;
-  reset|record-ready) phase_3_placeholder "$1" ;;
+  record-ready) phase_3_placeholder "$1" ;;
   *)
     printf 'unknown operation: %s\n' "$1" >&2
     printf 'usage: %s <operation>\n' "$0" >&2

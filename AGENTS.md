@@ -11,7 +11,7 @@ The authoritative technical contract is [`Especificacion_Lab.md`](Especificacion
 - Phase 0 is complete: repository scaffold, Make interface, version pins, and test placeholders.
 - Phase 1 is complete: healthy pricing, checkout, gateway, and load-generator services; verify with `./tests/healthy.sh`.
 - Phase 2 is complete: isolated Toxiproxy fault activation and degraded acceptance pass.
-- Phase 3 Review 2 is complete: `start`, `healthy-check`, `fault-on`, `verify`, `fault-off`, and `stop` are available. `verify` counts controlled HTTP outcomes; metric baseline/delta verification remains Phase 4. `reset` and `record-ready` remain next.
+- Phase 3 Review 2 is complete: `start`, `healthy-check`, `fault-on`, `verify`, `fault-off`, and `stop` are available. Phase 3.3 adds `reset`; it recreates the fixed lab project with owned volumes removed, then starts and verifies healthy. `record-ready` remains an explicit failing placeholder until the Phase 4–6 observability and investigator dependencies exist. Phase 3 is not complete.
 - OpenCode CLI is the investigation assistant.
 - OpenCode is not a functional dependency of the lab itself.
 

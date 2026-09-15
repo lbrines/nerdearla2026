@@ -1170,6 +1170,14 @@ Resultado:
 
 Reset fuerte y reproducible.
 
+## Implementación actual: Phase 3.3
+
+Para el proyecto fijo del lab, `reset` ejecuta explícitamente `docker compose down --volumes --remove-orphans`, luego usa el `start` existente y su verificación sana. Los contenedores nuevos recrean el proxy con su configuración neutral, sin toxic propiedad del escenario.
+
+Hoy no existen volúmenes de TSDB de Prometheus ni de logs. Esta fase no los declara ni afirma haberlos limpiado.
+
+## Contrato final
+
 Debe:
 
 * detener escenario;
@@ -1189,6 +1197,12 @@ Esto sirve para:
 ---
 
 # 35. `make record-ready`
+
+## Secuenciación aprobada
+
+`record-ready` se difiere intencionalmente hasta que las Phases 4–6 aporten métricas, logs, Grafana e investigator. Mientras tanto, permanece como placeholder explícito que falla; no se implementa una espera temporal como sustituto de evidencia observable.
+
+## Contrato final
 
 Flujo recomendado:
 
@@ -1773,7 +1787,11 @@ stop
 record-ready
 ```
 
-### Acceptance
+### Secuenciación aprobada
+
+Phase 3.3 implementa `reset`. `record-ready` conserva su contrato final, pero se difiere a las Phases 4–6 porque requiere observabilidad e investigator reales. Esta excepción no completa Phase 3.
+
+### Acceptance de Phase 3.3
 
 `tests/reset.sh` pasa repetidamente.
 
