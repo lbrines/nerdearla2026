@@ -10,6 +10,8 @@ services:
     networks:
       - operator_net
       - fault_net
+    volumes:
+      - lab_logs:/logs
 
   toxiproxy:
     image: ghcr.io/shopify/toxiproxy:${TOXIPROXY_VERSION}
@@ -32,6 +34,8 @@ services:
       - "127.0.0.1:18081:8080"
     networks:
       - operator_net
+    volumes:
+      - lab_logs:/logs
     depends_on:
       - pricing-api
 
@@ -48,6 +52,8 @@ services:
       - "127.0.0.1:18082:8080"
     networks:
       - operator_net
+    volumes:
+      - lab_logs:/logs
     depends_on:
       - pricing-api
 
@@ -65,6 +71,8 @@ services:
     networks:
       - operator_net
       - fault_net
+    volumes:
+      - lab_logs:/logs
     depends_on:
       - pricing-api
       - toxiproxy
@@ -98,6 +106,9 @@ services:
       - operator_net
     depends_on:
       - checkout-gateway
+
+volumes:
+  lab_logs:
 
 networks:
   operator_net:

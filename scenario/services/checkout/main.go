@@ -3,16 +3,23 @@ package main
 import (
 	"context"
 	"encoding/json"
+	"errors"
+	"fmt"
+	"io"
+	"log/slog"
 	"net/http"
 	"os"
+	"path/filepath"
 	"time"
 
+	"github.com/lbrines/nerderla2026/scenario/services/logging"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const (
 	defaultPricingTimeout = 500 * time.Millisecond
 	defaultUpstreamURL    = "http://pricing-api:8080"
+	logDirectory          = "/logs"
 )
 
 // CHECKOUT_INSTANCE identifies a replica; PRICING_UPSTREAM_URL selects its pricing path.
@@ -27,6 +34,7 @@ type checkoutServer struct {
 	client      *http.Client
 	timeout     time.Duration
 	metrics     *checkoutMetrics
+	logger      *slog.Logger
 }
 
 type upstreamResult struct {
@@ -36,7 +44,19 @@ type upstreamResult struct {
 
 func main() {
 	cfg := configFromEnv()
-	server := newCheckoutServer(cfg.instance, cfg.upstreamURL, http.DefaultClient, defaultPricingTimeout)
+	path, err := checkoutLogPath(cfg.instance)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "checkout: logging configuration is invalid")
+		return
+	}
+	logger, closeLog, err := logging.New(path, os.Stdout)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "checkout: cannot initialize logging")
+		return
+	}
+	defer closeLog()
+
+	server := newCheckoutServerWithLogger(cfg.instance, cfg.upstreamURL, http.DefaultClient, defaultPricingTimeout, logger)
 	_ = http.ListenAndServe(":8080", server.handler())
 }
 
@@ -48,13 +68,27 @@ func configFromEnv() config {
 	return config{instance: os.Getenv("CHECKOUT_INSTANCE"), upstreamURL: upstreamURL}
 }
 
+func checkoutLogPath(instance string) (string, error) {
+	switch instance {
+	case "checkout-1", "checkout-2", "checkout-3":
+		return filepath.Join(logDirectory, instance+".jsonl"), nil
+	default:
+		return "", errors.New("invalid checkout instance")
+	}
+}
+
 func newCheckoutServer(instance, upstreamURL string, client *http.Client, timeout time.Duration) checkoutServer {
+	return newCheckoutServerWithLogger(instance, upstreamURL, client, timeout, slog.New(slog.NewJSONHandler(io.Discard, nil)))
+}
+
+func newCheckoutServerWithLogger(instance, upstreamURL string, client *http.Client, timeout time.Duration, logger *slog.Logger) checkoutServer {
 	return checkoutServer{
 		instance:    instance,
 		upstreamURL: upstreamURL,
 		client:      client,
 		timeout:     timeout,
 		metrics:     newCheckoutMetrics(instance),
+		logger:      logger,
 	}
 }
 
@@ -132,6 +166,22 @@ func (s checkoutServer) callPricing(parent context.Context, requestID string) up
 		outcome = "timeout"
 	}
 	elapsed := time.Since(started)
+	deadlineExceeded := errors.Is(err, context.DeadlineExceeded) || errors.Is(ctx.Err(), context.DeadlineExceeded)
+	attributes := []slog.Attr{
+		slog.String("service", "checkout"),
+		slog.String("instance", s.instance),
+		slog.String("request_id", requestID),
+		slog.String("event", "pricing_call"),
+		slog.String("upstream", "pricing-api"),
+		slog.Int64("duration_ms", elapsed.Milliseconds()),
+		slog.String("outcome", outcome),
+	}
+	if deadlineExceeded {
+		attributes = append(attributes, slog.String("error", "context deadline exceeded"))
+		s.logger.LogAttrs(ctx, slog.LevelError, "", attributes...)
+	} else {
+		s.logger.LogAttrs(ctx, slog.LevelInfo, "", attributes...)
+	}
 	s.metrics.pricingRequests.WithLabelValues(s.instance, outcome).Inc()
 	s.metrics.pricingRequestDuration.WithLabelValues(s.instance).Observe(elapsed.Seconds())
 	return upstreamResult{outcome: outcome, elapsedMS: elapsed.Milliseconds()}
