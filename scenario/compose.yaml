@@ -143,6 +143,20 @@ services:
     depends_on:
       - checkout-gateway
 
+  investigator:
+    profiles: ["investigator"]
+    build:
+      context: ..
+      dockerfile: investigator/Dockerfile
+      args:
+        NODE_VERSION: ${NODE_VERSION}
+        OPENCODE_CLI_VERSION: ${OPENCODE_CLI_VERSION}
+    networks:
+      - operator_net
+    volumes:
+      - lab_logs:/var/log/lab:ro
+      - ${OPENCODE_DATA_DIR:-$HOME/.local/share/nerdearla2026/opencode}:/home/node/.local/share/opencode
+
 volumes:
   lab_logs:
   prometheus_data:

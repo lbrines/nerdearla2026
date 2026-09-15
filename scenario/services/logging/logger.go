@@ -8,7 +8,7 @@ import (
 
 // New creates a JSONL logger that writes each record to stdout and a file.
 func New(path string, stdout io.Writer) (*slog.Logger, func() error, error) {
-	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o600)
+	file, err := os.OpenFile(path, os.O_CREATE|os.O_APPEND|os.O_WRONLY, 0o644)
 	if err != nil {
 		return nil, nil, err
 	}
