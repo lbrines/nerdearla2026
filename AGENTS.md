@@ -12,7 +12,7 @@ The authoritative technical contract is [`Especificacion_Lab.md`](Especificacion
 - Phase 1 is complete: healthy pricing, checkout, gateway, and load-generator services; verify with `./tests/healthy.sh`.
 - Phase 2 is complete: isolated Toxiproxy fault activation and degraded acceptance pass.
 - Phase 3 Review 2 is complete: `start`, `healthy-check`, `fault-on`, `verify`, `fault-off`, and `stop` are available. Phase 3.3 adds `reset`; it recreates the fixed lab project with owned volumes removed, then starts and verifies healthy. `record-ready` remains an explicit failing placeholder until the Phase 4–6 observability and investigator dependencies exist. Phase 3 is not complete.
-- Phase 4.1 implements checkout, pricing, and gateway metrics, validated directly at `/metrics` by `./tests/observability.sh`. Phase 4.2 implements checkout and pricing JSONL logs; Phase 4.3A adds gateway and load-generator JSONL logs and their shared-volume mounts. Phase 4.3B cross-service runtime correlation and stop/reset log persistence, plus Prometheus/Grafana, remain incomplete, so Phase 4 is not complete.
+- Phase 4.1 implements checkout, pricing, and gateway metrics, validated directly at `/metrics` by `./tests/observability.sh`. Phase 4.2 implements checkout and pricing JSONL logs; Phase 4.3A adds gateway and load-generator JSONL logs and their shared-volume mounts. Phase 4.3B verifies cross-service runtime correlation and the shared-log lifecycle: `stop` retains logs and `reset` recreates them. Metric-based operational verification and Prometheus/Grafana remain incomplete, so Phase 4 is not complete.
 - OpenCode CLI is the investigation assistant.
 - OpenCode is not a functional dependency of the lab itself.
 

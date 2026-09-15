@@ -3,13 +3,21 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="$(cd -- "$SCRIPT_DIR/.." && pwd)"
+COMPOSE_FILE="$REPO_ROOT/scenario/compose.yaml"
+VERSIONS_FILE="$REPO_ROOT/versions.env"
+COMPOSE_PROJECT_NAME="nerdearla2026"
 
 cleanup() {
   local body_status=$?
   local cleanup_status=0
 
   if make --directory "$REPO_ROOT" stop >/dev/null; then
-    :
+    if docker compose --env-file "$VERSIONS_FILE" --project-name "$COMPOSE_PROJECT_NAME" --file "$COMPOSE_FILE" down --volumes --remove-orphans; then
+      :
+    else
+      cleanup_status=$?
+      printf 'lifecycle acceptance cleanup failed: could not remove the fixed lab project\n' >&2
+    fi
   else
     cleanup_status=$?
     printf 'lifecycle acceptance cleanup failed: make stop exited %s\n' "$cleanup_status" >&2
@@ -61,15 +69,31 @@ expect_unknown() {
 expect_cleanup_status() {
   local body_status="$1"
   local expected_status="$2"
-  local status
+  local cleanup_step="$3"
+  local output status
 
-  if (make() { return 23; }; trap cleanup EXIT; exit "$body_status"); then
+  if output="$(
+    (
+      if [ "$cleanup_step" = make ]; then
+        make() { return 23; }
+      else
+        make() { return 0; }
+        docker() { return 23; }
+      fi
+      trap cleanup EXIT
+      exit "$body_status"
+    ) 2>&1
+  )"; then
     status=0
   else
     status=$?
   fi
   if [ "$status" -ne "$expected_status" ]; then
     printf 'lifecycle acceptance failed: cleanup after %s exited %s; want %s\n' "$body_status" "$status" "$expected_status" >&2
+    return 1
+  fi
+  if [ "$cleanup_step" = volume ] && [[ "$output" != *'lifecycle acceptance cleanup failed: could not remove the fixed lab project'* ]]; then
+    printf 'lifecycle acceptance failed: volume cleanup failure was not reported: %s\n' "$output" >&2
     return 1
   fi
 }
@@ -183,8 +207,9 @@ if [ "${LIFECYCLE_DETERMINISTIC_ONLY:-}" = 1 ]; then
 fi
 
 trap cleanup EXIT
-expect_cleanup_status 0 23
-expect_cleanup_status 17 17
+expect_cleanup_status 0 23 make
+expect_cleanup_status 17 17 make
+expect_cleanup_status 0 23 volume
 
 make --directory "$REPO_ROOT" stop
 make --directory "$REPO_ROOT" start
