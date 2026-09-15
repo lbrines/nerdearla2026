@@ -1,0 +1,20 @@
+global:
+  scrape_interval: 5s
+
+scrape_configs:
+  - job_name: checkout-gateway
+    static_configs:
+      - targets:
+          - checkout-gateway:8080
+
+  - job_name: checkout-api
+    static_configs:
+      - targets:
+          - checkout-1:8080
+          - checkout-2:8080
+          - checkout-3:8080
+
+  - job_name: pricing-api
+    static_configs:
+      - targets:
+          - pricing-api:8080

@@ -1,0 +1,55 @@
+{
+  "uid": "checkout-by-instance",
+  "title": "Checkout by Instance",
+  "version": 1,
+  "schemaVersion": 41,
+  "refresh": "5s",
+  "time": {
+    "from": "now-5m",
+    "to": "now"
+  },
+  "panels": [
+    {
+      "id": 1,
+      "title": "Checkout error rate by instance",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 0 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (checkout_instance) (rate(checkout_requests_total{outcome=\"error\"}[30s])) / sum by (checkout_instance) (rate(checkout_requests_total[30s]))"
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "title": "Checkout request rate by instance",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 8 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (checkout_instance) (rate(checkout_requests_total[30s]))"
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "title": "Pricing-call p95 duration by instance",
+      "type": "timeseries",
+      "datasource": { "type": "prometheus", "uid": "prometheus" },
+      "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 16 },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "histogram_quantile(0.95, sum by (le, checkout_instance) (rate(checkout_pricing_request_duration_seconds_bucket[30s])))"
+        }
+      ]
+    }
+  ]
+}
