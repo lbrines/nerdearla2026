@@ -89,6 +89,8 @@ services:
       - "127.0.0.1:18084:8080"
     networks:
       - operator_net
+    volumes:
+      - lab_logs:/logs
     depends_on:
       - checkout-1
       - checkout-2
@@ -104,6 +106,8 @@ services:
       LOADGEN_TARGET_URL: http://checkout-gateway:8080/checkout
     networks:
       - operator_net
+    volumes:
+      - lab_logs:/logs
     depends_on:
       - checkout-gateway
 

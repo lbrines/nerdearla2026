@@ -2,8 +2,11 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/hex"
 	"fmt"
 	"log"
+	"log/slog"
 	"net/http"
 	"net/url"
 	"os"
@@ -13,12 +16,16 @@ import (
 	"sync/atomic"
 	"syscall"
 	"time"
+
+	"github.com/lbrines/nerderla2026/scenario/services/logging"
 )
 
 const (
 	defaultTargetURL   = "http://checkout-gateway:8080/checkout"
 	defaultInterval    = time.Second / 6
 	defaultConcurrency = 4
+	loadgenLogPath     = "/logs/loadgen.jsonl"
+	bootPrefixBytes    = 4
 )
 
 type config struct {
@@ -31,6 +38,8 @@ type generator struct {
 	targetURL   string
 	client      *http.Client
 	concurrency int
+	bootPrefix  string
+	logger      *slog.Logger
 	next        atomic.Uint64
 }
 
@@ -39,12 +48,35 @@ func main() {
 	if err != nil {
 		log.Fatal(err)
 	}
+	logger, closeLog, err := logging.New(loadgenLogPath, os.Stdout)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "loadgen: cannot initialize logging")
+		return
+	}
+	defer closeLog()
+	loadgen, err := newGenerator(cfg.targetURL, http.DefaultClient, cfg.concurrency, logger)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "loadgen: cannot generate boot prefix")
+		return
+	}
+
 	ctx, stop := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
 	defer stop()
 	ticker := time.NewTicker(cfg.interval)
 	defer ticker.Stop()
-	loadgen := generator{targetURL: cfg.targetURL, client: http.DefaultClient, concurrency: cfg.concurrency}
 	loadgen.run(ctx, ticker.C)
+}
+
+func newGenerator(targetURL string, client *http.Client, concurrency int, logger *slog.Logger) (*generator, error) {
+	bytes := make([]byte, bootPrefixBytes)
+	if _, err := rand.Read(bytes); err != nil {
+		return nil, err
+	}
+	return newGeneratorWithPrefix(targetURL, client, concurrency, hex.EncodeToString(bytes), logger), nil
+}
+
+func newGeneratorWithPrefix(targetURL string, client *http.Client, concurrency int, bootPrefix string, logger *slog.Logger) *generator {
+	return &generator{targetURL: targetURL, client: client, concurrency: concurrency, bootPrefix: bootPrefix, logger: logger}
 }
 
 func configFromEnv() (config, error) {
@@ -96,13 +128,40 @@ func (g *generator) run(ctx context.Context, ticks <-chan time.Time) {
 func (g *generator) request(ctx context.Context, id uint64, semaphore chan struct{}, workers *sync.WaitGroup) {
 	defer workers.Done()
 	defer func() { <-semaphore }()
+
+	started := time.Now()
+	requestID := fmt.Sprintf("loadgen-%s-%d", g.bootPrefix, id)
+	status := 0
+	transportError := false
 	request, err := http.NewRequestWithContext(ctx, http.MethodGet, g.targetURL, nil)
-	if err != nil {
-		return
+	if err == nil {
+		request.Header.Set("X-Request-ID", requestID)
+		response, err := g.client.Do(request)
+		if response != nil {
+			status = response.StatusCode
+			response.Body.Close()
+		}
+		transportError = err != nil
+	} else {
+		transportError = true
 	}
-	request.Header.Set("X-Request-ID", fmt.Sprintf("loadgen-%d", id))
-	response, _ := g.client.Do(request)
-	if response != nil {
-		response.Body.Close()
+
+	outcome := "success"
+	level := slog.LevelInfo
+	if status < http.StatusOK || status >= http.StatusMultipleChoices {
+		outcome = "error"
+		level = slog.LevelError
 	}
+	attributes := []slog.Attr{
+		slog.String("service", "loadgen"),
+		slog.String("request_id", requestID),
+		slog.String("event", "checkout_request"),
+		slog.Int64("duration_ms", time.Since(started).Milliseconds()),
+		slog.Int("status", status),
+		slog.String("outcome", outcome),
+	}
+	if transportError {
+		attributes = append(attributes, slog.String("error", "loadgen transport error"))
+	}
+	g.logger.LogAttrs(ctx, level, "", attributes...)
 }

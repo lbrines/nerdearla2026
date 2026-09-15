@@ -3,6 +3,7 @@ package main
 import (
 	"context"
 	"io"
+	"log/slog"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -23,7 +24,7 @@ func TestRunSendsOneRequestPerTickWithUniqueIDs(t *testing.T) {
 		ticks <- time.Time{}
 	}
 	close(ticks)
-	(&generator{targetURL: server.URL, client: server.Client(), concurrency: 3}).run(context.Background(), ticks)
+	testGenerator(server.URL, server.Client(), 3).run(context.Background(), ticks)
 
 	unique := make(map[string]bool)
 	for range 3 {
@@ -62,7 +63,7 @@ func TestRunDispatchesWithoutWaitingAndBoundsConcurrency(t *testing.T) {
 	}
 	done := make(chan struct{})
 	go func() {
-		(&generator{targetURL: server.URL, client: server.Client(), concurrency: 2}).run(ctx, ticks)
+		testGenerator(server.URL, server.Client(), 2).run(ctx, ticks)
 		close(done)
 	}()
 	<-started
@@ -112,7 +113,7 @@ func TestRunClosesResponseBodies(t *testing.T) {
 	ticks <- time.Time{}
 	close(ticks)
 
-	(&generator{targetURL: "http://gateway/checkout", client: client, concurrency: 1}).run(context.Background(), ticks)
+	testGenerator("http://gateway/checkout", client, 1).run(context.Background(), ticks)
 	if !body.closed {
 		t.Fatal("response body was not closed")
 	}
@@ -134,13 +135,17 @@ func TestRunCancelsInFlightRequest(t *testing.T) {
 	close(ticks)
 	done := make(chan struct{})
 	go func() {
-		(&generator{targetURL: server.URL, client: server.Client(), concurrency: 1}).run(ctx, ticks)
+		testGenerator(server.URL, server.Client(), 1).run(ctx, ticks)
 		close(done)
 	}()
 	<-started
 	cancel()
 	<-canceled
 	<-done
+}
+
+func testGenerator(targetURL string, client *http.Client, concurrency int) *generator {
+	return newGeneratorWithPrefix(targetURL, client, concurrency, "test", slog.New(slog.NewJSONHandler(io.Discard, nil)))
 }
 
 type loadgenRoundTripper func(*http.Request) (*http.Response, error)
