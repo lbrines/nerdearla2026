@@ -12,6 +12,7 @@ The authoritative technical contract is [`Especificacion_Lab.md`](Especificacion
 - Phase 1 is complete: healthy pricing, checkout, gateway, and load-generator services; verify with `./tests/healthy.sh`.
 - Phase 2 is complete: isolated Toxiproxy fault activation and degraded acceptance pass.
 - Phase 3 Review 2 is complete: `start`, `healthy-check`, `fault-on`, `verify`, `fault-off`, and `stop` are available. Phase 3.3 adds `reset`; it recreates the fixed lab project with owned volumes removed, then starts and verifies healthy. `record-ready` remains an explicit failing placeholder until the Phase 4–6 observability and investigator dependencies exist. Phase 3 is not complete.
+- Phase 4.1 implements checkout metrics only, validated directly at `/metrics`; pricing/gateway metrics, logs, Prometheus/Grafana, and `observability.sh` remain incomplete.
 - OpenCode CLI is the investigation assistant.
 - OpenCode is not a functional dependency of the lab itself.
 
@@ -61,7 +62,7 @@ Phase 0 placeholders intentionally fail until their owning phase is implemented.
 
 ## Configuration
 
-- `versions.env` is the single source of version pins.
+- `versions.env` is the single source of image and tool version pins; Go module dependencies are pinned in `go.mod` with generated checksums in `go.sum`.
 - Never use `latest`.
 - Support Docker Compose v2 on Linux and macOS, for `amd64` and `arm64`.
 - Authentication for OpenCode must be provided at runtime without preselecting a model provider.

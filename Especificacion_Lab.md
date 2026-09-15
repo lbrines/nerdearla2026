@@ -572,6 +572,10 @@ El label de réplica debe llamarse `checkout_instance`; no usar `instance`, porq
 
 Todas las combinaciones declaradas de labels y outcomes deben inicializarse en cero. Así, los dashboards muestran `0` en estado sano en lugar de `No data`.
 
+## Slice aprobada: Phase 4.1 — métricas de checkout
+
+Esta slice implementa solamente las métricas de checkout y permite validar su endpoint `/metrics` directamente. Las métricas de pricing y gateway, los logs, Compose/Prometheus/Grafana y `observability.sh` siguen pendientes; la acceptance completa de Phase 4 y la aceptación real de Prometheus permanecen en Phase 5.
+
 ## Checkout
 
 ```text
@@ -1422,6 +1426,8 @@ Durante implementación OpenCode debe:
 versions.env
 ```
 
+`versions.env` es la fuente de versiones para imágenes y herramientas. Las dependencias de módulos Go se fijan en `go.mod` y sus checksums generados quedan en `go.sum`; no se duplican en `versions.env`.
+
 Ejemplo conceptual:
 
 ```text
@@ -1809,6 +1815,10 @@ Implementar:
 * structured JSON logs;
 * shared read-only log volume;
 * request IDs.
+
+### Slice aprobada: Phase 4.1
+
+Implementar solo las métricas de checkout y validarlas directamente en `/metrics`. Esta slice no completa métricas de pricing o gateway, logs, el suite `observability.sh` ni la acceptance final de Phase 4; Prometheus y su aceptación efectiva siguen en Phase 5.
 
 ### Acceptance
 

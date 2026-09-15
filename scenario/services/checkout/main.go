@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"os"
 	"time"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const (
@@ -24,6 +26,7 @@ type checkoutServer struct {
 	upstreamURL string
 	client      *http.Client
 	timeout     time.Duration
+	metrics     *checkoutMetrics
 }
 
 type upstreamResult struct {
@@ -33,12 +36,7 @@ type upstreamResult struct {
 
 func main() {
 	cfg := configFromEnv()
-	server := checkoutServer{
-		instance:    cfg.instance,
-		upstreamURL: cfg.upstreamURL,
-		client:      http.DefaultClient,
-		timeout:     defaultPricingTimeout,
-	}
+	server := newCheckoutServer(cfg.instance, cfg.upstreamURL, http.DefaultClient, defaultPricingTimeout)
 	_ = http.ListenAndServe(":8080", server.handler())
 }
 
@@ -50,8 +48,18 @@ func configFromEnv() config {
 	return config{instance: os.Getenv("CHECKOUT_INSTANCE"), upstreamURL: upstreamURL}
 }
 
+func newCheckoutServer(instance, upstreamURL string, client *http.Client, timeout time.Duration) checkoutServer {
+	return checkoutServer{
+		instance:    instance,
+		upstreamURL: upstreamURL,
+		client:      client,
+		timeout:     timeout,
+		metrics:     newCheckoutMetrics(instance),
+	}
+}
+
 func newHandler(upstreamURL string, client *http.Client, timeout time.Duration) http.Handler {
-	return checkoutServer{upstreamURL: upstreamURL, client: client, timeout: timeout}.handler()
+	return newCheckoutServer("", upstreamURL, client, timeout).handler()
 }
 
 func (s checkoutServer) handler() http.Handler {
@@ -59,6 +67,7 @@ func (s checkoutServer) handler() http.Handler {
 	mux.HandleFunc("/healthz", s.health)
 	mux.HandleFunc("/checkout", s.checkout)
 	mux.HandleFunc("/debug/upstream", s.debugUpstream)
+	mux.Handle("/metrics", promhttp.HandlerFor(s.metrics.registry, promhttp.HandlerOpts{}))
 	return mux
 }
 
@@ -75,7 +84,16 @@ func (s checkoutServer) checkout(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+
+	started := time.Now()
 	result := s.callPricing(r.Context(), r.Header.Get("X-Request-ID"))
+	outcome := "success"
+	if result.outcome == "timeout" {
+		outcome = "error"
+	}
+	s.metrics.requests.WithLabelValues(s.instance, outcome).Inc()
+	s.metrics.requestDuration.WithLabelValues(s.instance).Observe(time.Since(started).Seconds())
+
 	if result.outcome == "timeout" {
 		http.Error(w, "gateway timeout", http.StatusGatewayTimeout)
 		return
@@ -113,5 +131,8 @@ func (s checkoutServer) callPricing(parent context.Context, requestID string) up
 	if err != nil || response.StatusCode != http.StatusOK {
 		outcome = "timeout"
 	}
-	return upstreamResult{outcome: outcome, elapsedMS: time.Since(started).Milliseconds()}
+	elapsed := time.Since(started)
+	s.metrics.pricingRequests.WithLabelValues(s.instance, outcome).Inc()
+	s.metrics.pricingRequestDuration.WithLabelValues(s.instance).Observe(elapsed.Seconds())
+	return upstreamResult{outcome: outcome, elapsedMS: elapsed.Milliseconds()}
 }
