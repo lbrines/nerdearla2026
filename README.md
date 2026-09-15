@@ -1,6 +1,6 @@
 # Lab de Troubleshooting
 
-**Estado: Phase 2 completa. La activación aislada de fallas de Toxiproxy y la aceptación degradada pasan; Phase 3 sigue.**
+**Estado: Phase 3 en curso. `make start`, `make healthy-check` y `make stop` están disponibles; transiciones, verificación, reset y record-ready siguen para próximas revisiones.**
 
 La autoridad técnica del lab es [Especificacion_Lab.md](Especificacion_Lab.md).
 

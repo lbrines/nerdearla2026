@@ -1,18 +1,108 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
+REPO_ROOT="$(cd -- "$SCRIPT_DIR/../.." && pwd)"
+COMPOSE_FILE="$REPO_ROOT/scenario/compose.yaml"
+VERSIONS_FILE="$REPO_ROOT/versions.env"
+COMPOSE_PROJECT_NAME="nerdearla2026"
+HEALTH_TIMEOUT_SECONDS=60
+
+compose() {
+  docker compose --env-file "$VERSIONS_FILE" --project-name "$COMPOSE_PROJECT_NAME" --file "$COMPOSE_FILE" "$@"
+}
+
+fail() {
+  printf 'labctl: %s\n' "$1" >&2
+  return 1
+}
+
+wait_for_200() {
+  local name="$1"
+  local url="$2"
+  local deadline="$3"
+  local status
+
+  while :; do
+    if status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 2 "$url")" && [ "$status" = 200 ]; then
+      return 0
+    fi
+    if (( SECONDS >= deadline )); then
+      fail "$name did not return HTTP 200 at $url within ${HEALTH_TIMEOUT_SECONDS} seconds (last status: ${status:-unavailable})"
+      return 1
+    fi
+    sleep 1
+  done
+}
+
+neutral_proxy_present() {
+  local proxy_list
+
+  proxy_list="$(compose exec --no-TTY toxiproxy /toxiproxy-cli list 2>/dev/null)" || return 1
+  printf '%s\n' "$proxy_list" | awk '
+    BEGIN { valid = 1 }
+    NF {
+      rows++
+      if (NF != 5 || $1 != "pricing" || ($2 != "0.0.0.0:8666" && $2 != "[::]:8666") || $3 != "pricing-api:8080" || $4 != "enabled" || $5 != 0) valid = 0
+    }
+    END { exit !(rows == 1 && valid) }
+  '
+}
+
+wait_for_neutral_proxy() {
+  local deadline="$1"
+
+  while ! neutral_proxy_present; do
+    if (( SECONDS >= deadline )); then
+      fail 'toxiproxy must expose exactly one enabled pricing proxy on wildcard port 8666 upstream pricing-api:8080 with zero toxics within 60 seconds'
+      return 1
+    fi
+    sleep 1
+  done
+}
+
+healthy_check() {
+  local deadline=$((SECONDS + HEALTH_TIMEOUT_SECONDS))
+
+  wait_for_200 pricing-api http://127.0.0.1:18080/healthz "$deadline"
+  wait_for_200 checkout-1 http://127.0.0.1:18081/healthz "$deadline"
+  wait_for_200 checkout-2 http://127.0.0.1:18082/healthz "$deadline"
+  wait_for_200 checkout-3 http://127.0.0.1:18083/healthz "$deadline"
+  wait_for_200 checkout-gateway http://127.0.0.1:18084/healthz "$deadline"
+  wait_for_200 checkout-1 http://127.0.0.1:18081/checkout "$deadline"
+  wait_for_200 checkout-2 http://127.0.0.1:18082/checkout "$deadline"
+  wait_for_200 checkout-3 http://127.0.0.1:18083/checkout "$deadline"
+  wait_for_200 checkout-gateway http://127.0.0.1:18084/checkout "$deadline"
+  wait_for_neutral_proxy "$deadline"
+}
+
+start() {
+  compose up --build --detach
+  healthy_check
+}
+
+stop() {
+  compose down --remove-orphans
+}
+
+phase_3_placeholder() {
+  printf 'Phase 3 placeholder: operation "%s" is owned by a later Phase 3 review.\n' "$1" >&2
+  return 1
+}
+
 if [ "$#" -ne 1 ]; then
   printf 'usage: %s <operation>\n' "$0" >&2
   exit 2
 fi
 
 case "$1" in
-  start|healthy-check|fault-on|verify|fault-off|reset|stop|record-ready)
-    printf 'Phase 0: operation "%s" is not implemented until Phase 3.\n' "$1" >&2
-    exit 1
-    ;;
+  start) start ;;
+  healthy-check) healthy_check ;;
+  stop) stop ;;
+  fault-on|verify|fault-off|reset|record-ready) phase_3_placeholder "$1" ;;
   *)
     printf 'unknown operation: %s\n' "$1" >&2
+    printf 'usage: %s <operation>\n' "$0" >&2
     exit 2
     ;;
 esac
