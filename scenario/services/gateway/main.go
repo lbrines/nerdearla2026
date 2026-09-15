@@ -8,6 +8,8 @@ import (
 	"os"
 	"strings"
 	"sync/atomic"
+
+	"github.com/prometheus/client_golang/prometheus/promhttp"
 )
 
 const defaultBackendURLs = "http://checkout-1:8080,http://checkout-2:8080,http://checkout-3:8080"
@@ -18,6 +20,7 @@ type gateway struct {
 	backends []string
 	client   *http.Client
 	next     atomic.Uint64
+	metrics  *gatewayMetrics
 }
 
 func main() {
@@ -53,13 +56,14 @@ func gatewayClient() *http.Client {
 }
 
 func newHandler(backends []string, client *http.Client) http.Handler {
-	return (&gateway{backends: backends, client: client}).handler()
+	return (&gateway{backends: backends, client: client, metrics: newGatewayMetrics()}).handler()
 }
 
 func (g *gateway) handler() http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc("/healthz", g.health)
 	mux.HandleFunc("/checkout", g.checkout)
+	mux.Handle("/metrics", promhttp.HandlerFor(g.metrics.registry, promhttp.HandlerOpts{}))
 	return mux
 }
 
@@ -76,10 +80,13 @@ func (g *gateway) checkout(w http.ResponseWriter, r *http.Request) {
 		w.WriteHeader(http.StatusMethodNotAllowed)
 		return
 	}
+
+	status := http.StatusBadGateway
+	defer func() { g.metrics.record(status) }()
 	backend := g.backends[(g.next.Add(1)-1)%uint64(len(g.backends))]
 	request, err := http.NewRequestWithContext(r.Context(), http.MethodGet, strings.TrimRight(backend, "/")+"/checkout", nil)
 	if err != nil {
-		http.Error(w, "bad gateway", http.StatusBadGateway)
+		http.Error(w, "bad gateway", status)
 		return
 	}
 	request.Header.Set("X-Request-ID", r.Header.Get("X-Request-ID"))
@@ -88,8 +95,9 @@ func (g *gateway) checkout(w http.ResponseWriter, r *http.Request) {
 		response.Body.Close()
 	}
 	if err != nil {
-		http.Error(w, "bad gateway", http.StatusBadGateway)
+		http.Error(w, "bad gateway", status)
 		return
 	}
-	w.WriteHeader(response.StatusCode)
+	status = response.StatusCode
+	w.WriteHeader(status)
 }

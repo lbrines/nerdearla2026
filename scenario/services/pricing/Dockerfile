@@ -3,7 +3,7 @@ FROM golang:${GO_VERSION}-alpine AS build
 
 WORKDIR /src
 COPY go.mod go.sum ./
-COPY scenario/services/pricing/main.go ./scenario/services/pricing/main.go
+COPY scenario/services/pricing/main.go scenario/services/pricing/metrics.go ./scenario/services/pricing/
 RUN CGO_ENABLED=0 GOOS=linux go build -trimpath -ldflags='-s -w' -o /pricing ./scenario/services/pricing
 
 FROM scratch

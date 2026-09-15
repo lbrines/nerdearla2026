@@ -572,9 +572,9 @@ El label de réplica debe llamarse `checkout_instance`; no usar `instance`, porq
 
 Todas las combinaciones declaradas de labels y outcomes deben inicializarse en cero. Así, los dashboards muestran `0` en estado sano en lugar de `No data`.
 
-## Slice aprobada: Phase 4.1 — métricas de checkout
+## Slice aprobada: Phase 4.1 — métricas directas de servicios
 
-Esta slice implementa solamente las métricas de checkout y permite validar su endpoint `/metrics` directamente. Las métricas de pricing y gateway, los logs, Compose/Prometheus/Grafana y `observability.sh` siguen pendientes; la acceptance completa de Phase 4 y la aceptación real de Prometheus permanecen en Phase 5.
+Esta slice implementa las métricas de checkout, pricing y gateway, y permite validar sus endpoints `/metrics` directamente con `observability.sh`. Los logs y Compose/Prometheus/Grafana siguen pendientes; la acceptance completa de Phase 4 y la aceptación real de Prometheus permanecen en Phase 5.
 
 ## Checkout
 
@@ -646,7 +646,7 @@ gateway_requests_total{
 }
 ```
 
-No es imprescindible mostrar backend en los dashboards iniciales.
+Cada intento completado de `GET /checkout` cuenta: todo código `2xx` es `success`; cualquier código no `2xx`, incluidos redirects y el `502` propio, es `error`. No incluye labels de URL, backend ni instancia. No es imprescindible mostrar backend en los dashboards iniciales.
 
 ---
 
@@ -1818,7 +1818,7 @@ Implementar:
 
 ### Slice aprobada: Phase 4.1
 
-Implementar solo las métricas de checkout y validarlas directamente en `/metrics`. Esta slice no completa métricas de pricing o gateway, logs, el suite `observability.sh` ni la acceptance final de Phase 4; Prometheus y su aceptación efectiva siguen en Phase 5.
+Implementar las métricas de checkout, pricing y gateway y validarlas directamente en `/metrics` con `observability.sh`. Esta slice no completa logs ni la acceptance final de Phase 4; Prometheus y su aceptación efectiva siguen en Phase 5.
 
 ### Acceptance
 
