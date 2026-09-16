@@ -829,7 +829,9 @@ OpenCode se ejecuta dentro del container **investigator**. El container pertenec
 
 Internal Operator debe ser inaccesible desde investigator y OpenCode, incluso a través de `operator_net` desde el sandbox. No puede estar en el filesystem visible a participantes ni montarse nunca en investigator. Debe permanecer separado de los artefactos Baseline y Protocol.
 
-La frontera técnica, no una instrucción al modelo, protege la información física de la falla y la solución.
+Durante las sesiones experimentales Baseline y Protocol debe existir una frontera técnicamente u operativamente verificable que impida al investigator obtener, desde repositorios públicos u otras fuentes externas, información que revele la implementación física, la inyección de falla, Toxiproxy, la instancia degradada, el happy path, material Internal Operator o la solución del escenario. Una instrucción como “no mirar GitHub” no satisface este contrato. Phase 7B puede resolverla mediante egress controlado, una allowlist mínima de proveedor/modelo, el retiro temporal de material público sensible, ejecución hermética o un equivalente verificable; Phase 7A no selecciona ni implementa ese mecanismo.
+
+La frontera de aislamiento, no una instrucción al modelo, protege la información física de la falla y la solución.
 
 ---
 
@@ -1234,15 +1236,13 @@ troubleshooting-lab/
 │       ├── labctl
 │       └── verify/
 │
-├── investigator/
-│   ├── Dockerfile
-│   ├── README.md
-│   ├── architecture.md
-│   ├── INVESTIGATION_PROTOCOL.md
-│   ├── investigation.md
-│   └── bin/
-│       └── promq
+├── Superficies visibles al investigator (conceptual; paths y mounting se definen en Phase 7B)
+│   ├── common investigator assets
+│   ├── Baseline-only profile assets
+│   └── Protocol-only profile assets
 │
+├── Internal Operator (conceptual; fuera de toda superficie visible o montada por investigator)
+
 ├── docs/
 │   ├── acceptance.md
 │   ├── recording-runbook.md
@@ -1733,7 +1733,7 @@ No montar:
 
 ---
 
-## Phase 7 — Superficies experimentales conceptuales
+## Phase 7A — Contrato de perfiles
 
 Definir Baseline, Protocol e Internal Operator sin implementar perfiles físicos.
 
@@ -1747,9 +1747,41 @@ Definir Baseline, Protocol e Internal Operator sin implementar perfiles físicos
 
 ---
 
+## Phase 7B — Implementación de perfiles
+
+Implementar la superficie Baseline, la superficie Protocol y el material Internal Operator separado y materializado. Implementar también la frontera de fuentes externas definida en la sección 22.
+
+### Acceptance
+
+* se valida la igualdad exacta de capacidades técnicas, evidencia disponible y acceso entre Baseline y Protocol;
+* se valida que Protocol difiere de Baseline únicamente por su método de investigación;
+* se valida el aislamiento de Internal Operator respecto de todas las superficies visibles o montadas por investigator;
+* se valida que ningún perfil experimental revela la solución física, la inyección de falla, Toxiproxy, la instancia degradada, el happy path, material Internal Operator ni la solución del escenario;
+* se valida una frontera técnicamente u operativamente verificable que impide obtener desde fuentes externas la información restringida por la sección 22.
+
+Phase 8 solo puede comenzar cuando esta acceptance pase.
+
+---
+
 ## Phase 8 — Comparative dry run
 
 Ejecutar sesiones independientes con Model A + Baseline y Model A + Protocol. Puede repetirse opcionalmente con otros modelos, siempre en sesiones independientes; no es benchmarking competitivo.
+
+### Preparación mínima de cada par
+
+Cada par Baseline/Protocol debe usar:
+
+1. el mismo commit o versión del lab;
+2. `reset`, la activación del mismo incidente y la misma ventana de estabilización antes de cada inicio;
+3. workspace limpio o efímero y una conversación/sesión LLM nueva;
+4. exactamente el mismo modelo y proveedor;
+5. el mismo prompt inicial de incidente, excepto que Protocol recibe además su método;
+6. la misma evidencia y capacidades de acceso;
+7. sesiones independientes.
+
+Registrar por cada sesión: modelo/proveedor, perfil, commit del lab, prompt inicial, hora de ejecución o identificador de corrida, duración aproximada y artefacto o transcript resultante.
+
+Esta preparación controla reproducibilidad y contaminación; no define un benchmark científico complejo.
 
 Evaluar comparativamente:
 
@@ -1801,6 +1833,7 @@ Guardar grabación original sin editar.
 | Riesgo | Mitigación |
 | --- | --- |
 | El investigador encuentra Toxiproxy leyendo archivos | sandbox real, no instrucciones |
+| El investigador obtiene información sensible desde repositorios públicos u otras fuentes externas | frontera de fuentes externas técnicamente u operativamente verificable, no una instrucción al modelo |
 | Baseline y Protocol reciben evidencia o acceso diferente | validar igualdad de capacidades y evidencia antes del dry run |
 | Internal Operator llega al sandbox o al filesystem de participantes | mantenerlo fuera de investigator, OpenCode y las rutas accesibles desde `operator_net` del sandbox |
 | Protocol se convierte en una ruta hacia la respuesta | prohibir orden, hipótesis, consultas, happy path y pistas específicas del escenario |
@@ -1834,6 +1867,7 @@ El lab está terminado únicamente cuando todas estas afirmaciones son verdadera
 [ ] Grafana by-instance revela claramente checkout-3
 [ ] logs aportan evidencia sin revelar Toxiproxy
 [ ] investigator no puede acceder a la configuración de falla
+[ ] una frontera técnicamente u operativamente verificable impide a Baseline y Protocol obtener desde fuentes externas la información restringida por la sección 22
 [ ] Baseline y Protocol exponen las mismas capacidades, evidencia y acceso
 [ ] la única diferencia entre Baseline y Protocol es el método
 [ ] Internal Operator no es accesible desde investigator, OpenCode, operator_net del sandbox ni filesystem de participantes
