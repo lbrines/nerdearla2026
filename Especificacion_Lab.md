@@ -9,23 +9,17 @@
 
 # 1. Objetivo
 
-Construir un entorno local, pequeño, determinista y reproducible donde pueda ocurrir un incidente real y se pueda investigar utilizando OpenCode desde terminal.
+Construir un entorno local, pequeño, determinista y reproducible donde pueda ocurrir un incidente real y se pueda investigar desde terminal, incluso usando OpenCode como herramienta opcional.
 
-El lab debe hacer visible este proceso:
+El lab compara dos superficies conceptuales de investigación sobre el mismo incidente: **Baseline** observa el comportamiento sin método explícito; **Protocol** usa una disciplina explícita de investigación. **Internal Operator** es material operativo aislado y no una tercera condición experimental.
 
-> **HECHOS → HIPÓTESIS → AMPLIAR → INTENTAR ROMPER → PRUEBA → EVIDENCIA → ACTUALIZAR**
-
-El objetivo **no es que OpenCode encuentre rápidamente la causa**.
-
-El objetivo es conseguir una investigación donde:
-
-> el humano genera hipótesis → el LLM amplía → humano y LLM diseñan pruebas → el sistema devuelve evidencia → cambian las hipótesis.
+El objetivo no es que un mejor prompt produzca una mejor respuesta. El objetivo es observar si una disciplina explícita de investigación produce razonamiento más verificable, falsable, trazable, actualizable y resistente a conclusiones prematuras.
 
 ---
 
 # 2. Objetivos pedagógicos
 
-El lab debe demostrar principalmente dos comportamientos.
+El lab debe demostrar que una investigación puede reducir incertidumbre sin convertir una explicación plausible en root cause.
 
 ### Objetivo primario
 
@@ -33,12 +27,14 @@ El lab debe demostrar principalmente dos comportamientos.
 
 ### Objetivo secundario
 
-> **Usá el LLM para ampliar y desafiar tu razonamiento, no para darte la respuesta.**
+> **Usá herramientas y modelos para ampliar y desafiar el razonamiento, no para sustituir la evidencia.**
 
-Y una regla transversal:
+Reglas transversales:
 
-> **Una hipótesis puede provenir del humano o del LLM.
-> La evidencia debe provenir del sistema observado.**
+* una hipótesis puede provenir del humano o del modelo;
+* un hecho requiere una observación del sistema;
+* una respuesta del modelo no es evidencia;
+* Baseline y Protocol se comparan como evidencia de comportamiento de investigación, no como competencia entre modelos.
 
 ---
 
@@ -52,13 +48,14 @@ El lab **no** debe convertirse en una demo de:
 * Grafana;
 * Toxiproxy;
 * networking;
-* OpenCode;
-* prompting;
-* agentes;
+* OpenCode u otra herramienta específica;
+* prompt engineering;
+* benchmarking de modelos;
+* agentes o sistemas multi-agente;
 * skills;
 * tracing distribuido.
 
-Esas tecnologías son instrumentos.
+Esas tecnologías son instrumentos; los perfiles no son una demo de prompting ni una evaluación competitiva de modelos.
 
 Tampoco construiremos:
 
@@ -67,8 +64,6 @@ Tampoco construiremos:
 * Elasticsearch;
 * Jaeger;
 * OpenTelemetry Collector;
-* multi-agent;
-* Pi/Gentel-IA;
 * una aplicación empresarial compleja;
 * frontend;
 * base de datos;
@@ -785,45 +780,33 @@ Requisitos:
 
 ---
 
-# 20. Investigation workspace
+# 20. Perfiles experimentales conceptuales
 
-OpenCode trabaja únicamente desde:
+Esta sección define superficies conceptuales; no elige una implementación física de perfiles ni autoriza implementarla en esta fase.
+
+| Perfil | Rol | Contenido permitido |
+| --- | --- | --- |
+| **Baseline** | condición experimental de observación espontánea | arquitectura lógica, servicios y réplicas conocidos, métricas, logs, Prometheus, Grafana, interfaces diagnósticas permitidas y herramientas genéricas del investigator; no incluye método explícito, instrucciones de falsación, orden sugerido, hipótesis, PromQL sugerida, happy path, root cause ni información física de la falla. |
+| **Protocol** | condición experimental con disciplina explícita | exactamente el mismo incidente, arquitectura, herramientas, métricas, logs, interfaces, evidencia disponible, estado inicial y capacidades de acceso que Baseline; su única diferencia deliberada es el método de investigación. |
+| **Internal Operator** | material exclusivo de operación | puede contener happy path, consultas PromQL y diagnósticas conocidas, señales y resultados esperados, secuencia de validación, regresiones y preparación de grabación. No es una tercera condición experimental. |
+
+## Principio de comparación controlada
+
+Entre Baseline y Protocol permanecen constantes el modelo, incidente, arquitectura, evidencia, herramientas, estado inicial y capacidades de acceso. Solo cambia el método. La comparación no busca demostrar que un prompt produce una respuesta mejor, sino si la disciplina explícita produce razonamiento más verificable, falsable, trazable, actualizable y resistente a conclusiones prematuras.
+
+---
+
+# 21. Workspace del investigator
+
+Baseline y Protocol trabajan conceptualmente desde:
 
 ```text
 /investigator-workspace
 ```
 
-Contenido:
+Ambos reciben la misma arquitectura lógica, servicios y réplicas conocidos, métricas, logs, Prometheus, Grafana, interfaces diagnósticas permitidas y herramientas genéricas. La única diferencia de contenido es metodológica: Protocol recibe su método y template; Baseline no recibe un método explícito, instrucciones de falsación, orden de investigación, hipótesis, consultas sugeridas, happy path, root cause ni información física de la falla.
 
-```text
-README.md
-INVESTIGATION_PROTOCOL.md
-investigation.md
-architecture.md
-bin/
-  promq
-```
-
-Opcionalmente:
-
-```text
-notes/
-```
-
-No contiene:
-
-* Compose;
-* source de fault injection;
-* Toxiproxy config;
-* control scripts;
-* implementación del escenario;
-* secretos.
-
----
-
-# 21. `architecture.md`
-
-Debe mostrar únicamente:
+La arquitectura lógica puede mostrar únicamente:
 
 ```text
 client
@@ -836,46 +819,17 @@ checkout-api
 pricing-api
 ```
 
-Información permitida:
-
-* existen 3 réplicas;
-* pricing es una dependencia;
-* timeout general conocido o descubrible;
-* endpoints públicos;
-* ubicación de logs;
-* Prometheus/Grafana.
-
-No contiene diferencias internas entre réplicas.
+Puede informar que existen tres réplicas, que pricing es una dependencia, los endpoints públicos, la ubicación de logs y Prometheus/Grafana. No contiene diferencias internas entre réplicas.
 
 ---
 
-# 22. Seguridad del escenario frente a OpenCode
+# 22. Frontera de seguridad y material Internal Operator
 
-OpenCode se debe ejecutar dentro de un container:
+OpenCode se ejecuta dentro del container **investigator**. El container pertenece a `operator_net`, no pertenece a `fault_net`, no monta el repositorio completo, directorios padre ni `/var/run/docker.sock`, no puede leer `compose.yaml`, resolver `toxiproxy` ni acceder a su API administrativa. Solo puede leer logs y consultar los servicios, Prometheus y Grafana permitidos.
 
-> **investigator**
+Internal Operator debe ser inaccesible desde investigator y OpenCode, incluso a través de `operator_net` desde el sandbox. No puede estar en el filesystem visible a participantes ni montarse nunca en investigator. Debe permanecer separado de los artefactos Baseline y Protocol.
 
-El container:
-
-* pertenece a `operator_net`;
-* no pertenece a `fault_net`;
-* no monta el repositorio completo;
-* no monta `/var/run/docker.sock`;
-* no monta directorios padre;
-* no puede ejecutar `docker inspect`;
-* no puede leer `compose.yaml`;
-* no puede resolver `toxiproxy`;
-* no puede acceder al admin API de Toxiproxy;
-* solo puede leer logs;
-* puede consultar servicios, Prometheus y Grafana.
-
-Esto es la **frontera de seguridad principal** del lab.
-
-No depender de decirle al LLM:
-
-> “por favor no mires compose”.
-
-Debe ser técnicamente inaccesible.
+La frontera técnica, no una instrucción al modelo, protege la información física de la falla y la solución.
 
 ---
 
@@ -891,177 +845,73 @@ Requisitos:
 * no usar `latest` sin pinning;
 * el container sigue siendo utilizable manualmente aunque OpenCode no esté disponible.
 
-La investigación técnica debe funcionar incluso desde shell.
-
-OpenCode es una **capa sobre el lab**, no una dependencia funcional del escenario.
+La investigación técnica debe funcionar incluso desde shell. OpenCode es una capa sobre el lab, no una dependencia funcional del escenario ni una condición distinta entre Baseline y Protocol.
 
 ---
 
-# 24. Protocolo de investigación
+# 24. Método Protocol
 
-Archivo:
+Protocol aplica exactamente esta secuencia:
 
-```text
-INVESTIGATION_PROTOCOL.md
-```
+> **FACTS → HYPOTHESES → PREDICTION → TEST → FALSIFIER → EVIDENCE → UPDATE**
 
-Contenido conceptual obligatorio:
+Principios metodológicos:
 
-### Objetivo
+1. separar hechos de interpretaciones y tratar como hecho solo una observación del sistema;
+2. no convertir una respuesta del modelo en hecho;
+3. mantener hipótesis alternativas y buscar activamente alternativas a la dominante;
+4. antes de cada prueba significativa, explicitar hipótesis, predicción, prueba y falsificador;
+5. preferir pruebas baratas, seguras y de alto valor informativo;
+6. no hacer shotgun debugging;
+7. actualizar, descartar o depriorizar hipótesis solo con evidencia que lo justifique;
+8. no declarar root cause porque una explicación sea plausible;
+9. pedir aprobación humana antes de acciones que cambien estado, tengan riesgo o cambien materialmente la dirección de investigación;
+10. permitir comandos triviales de lectura una vez explicitada su intención;
+11. reducir incertidumbre suficiente para decidir el siguiente paso, no buscar certeza absoluta.
 
-> Reducir incertidumbre mediante evidencia. No adivinar una root cause.
-
-### Reglas
-
-1. Separar hechos de interpretaciones.
-2. Mantener un estado de investigación conciso.
-3. Generar hipótesis alternativas.
-4. Buscar activamente alternativas a la hipótesis dominante.
-5. Antes de cada prueba significativa, indicar:
-
-   * hipótesis;
-   * predicción si es cierta;
-   * prueba propuesta;
-   * resultado que la debilitaría.
-6. Preferir pruebas:
-
-   * baratas;
-   * seguras;
-   * de alto valor informativo.
-7. No hacer shotgun debugging.
-8. No convertir una respuesta del LLM en hecho.
-9. Los hechos requieren observación del sistema.
-10. Actualizar hipótesis según nueva evidencia.
-11. Declarar una hipótesis descartada/depriorizada solo indicando por qué.
-12. No declarar root cause solamente porque una explicación sea plausible.
-13. Pedir aprobación humana antes de:
-
-* acciones que cambien estado;
-* acciones con riesgo;
-* pruebas que materialmente cambien la dirección de investigación.
-
-14. Los comandos triviales de lectura pueden ejecutarse una vez explicitada su intención.
-15. El objetivo no es certeza absoluta; es reducir suficiente incertidumbre para decidir el próximo paso.
+El método no prescribe orden de servicios, réplicas, consultas, hipótesis, happy path ni conclusión.
 
 ---
 
-# 25. Investigation log
+# 25. Registro de Protocol
 
-Archivo:
-
-```text
-investigation.md
-```
-
-Formato obligatorio:
+Protocol debe poder registrar exactamente estas secciones y campos en `investigation.md`:
 
 ```markdown
-# Investigation
-
 ## FACTS
 
-## HYPOTHESES
-
-## DISCARDED / DEPRIORITIZED
+## CURRENT HYPOTHESES
 
 ## NEXT TEST
+Hypothesis:
+Prediction:
+Test:
+Falsifier:
+
+## EVIDENCE
+
+## UPDATED / DISCARDED
 ```
 
-Cada elemento en `DISCARDED / DEPRIORITIZED` debe incluir evidencia.
-
-Ejemplo:
-
-```markdown
-- pricing-api globally degraded
-  - deprioritized because direct metrics show ~40ms p95 and ~0% errors.
-```
-
-El log debe permanecer pequeño.
-
-Objetivo aproximado:
-
-> una pantalla.
+Los elementos actualizados o descartados deben vincular su evidencia. El registro debe permanecer pequeño y revisable. Baseline no está obligado a usar esta estructura.
 
 ---
 
-# 26. Primer estado de investigación esperado
+# 26. Estado inicial común
 
-Inicialmente:
-
-```text
-FACTS
-- checkout-api error rate ≈ 33%
-- timeout calling pricing-api
-
-HYPOTHESES — humanas
-- pricing-api degradado
-- networking
-- timeout/configuración
-```
-
-Después se pregunta a OpenCode:
-
-> **“¿Qué hipótesis no estamos considerando?”**
-
-Respuestas plausibles:
-
-* una réplica específica;
-* routing;
-* DNS;
-* diferencias de configuración;
-* pool/conexiones;
-* otros problemas localizados.
-
-No necesitamos forzar una respuesta específica.
+Baseline y Protocol comienzan con el mismo incidente y las mismas capacidades de observación. Ninguno recibe una interpretación requerida, hipótesis iniciales, orden de investigación ni una conclusión esperada. Toda diferencia posterior debe provenir del método Protocol, no de evidencia o acceso adicional.
 
 ---
 
-# 27. Hipótesis esperadas y pruebas disponibles
+# 27. Evidencia disponible y límites
 
-| Hipótesis                                 | Prueba útil                                   | Resultado esperado                        |
-| ----------------------------------------- | --------------------------------------------- | ----------------------------------------- |
-| Pricing globalmente degradado             | métricas/health directos                      | debilitada                                |
-| Problema global de checkout               | segmentar por instancia                       | debilitada                                |
-| Una réplica diferente                     | error rate por instancia                      | gana fuerza                               |
-| Timeout/configuración global              | comparar comportamiento entre réplicas        | pierde fuerza                             |
-| Problema localizado de networking/routing | comparar llamadas desde cada checkout         | gana fuerza                               |
-| DNS                                       | evidencia/logs/pruebas disponibles si aparece | debería perder fuerza o quedar secundaria |
-
-No todas tienen que investigarse durante la grabación.
+Ambos perfiles pueden observar únicamente las interfaces lógicas, métricas, logs, Prometheus, Grafana y diagnósticos permitidos por este documento. La evidencia física, la configuración de inyección y el mecanismo concreto permanecen fuera de alcance. El investigador puede localizar evidencia lógica sin identificar Toxiproxy ni el mecanismo físico exacto.
 
 ---
 
-# 28. Secuencia de troubleshooting objetivo
+# 28. Sin trayectoria prescrita
 
-No es un script rígido para OpenCode.
-
-Es la trayectoria pedagógica que el entorno debe permitir.
-
-```text
-síntoma agregado
-      ↓
-hipótesis humanas
-      ↓
-LLM amplía
-      ↓
-elegir prueba informativa
-      ↓
-test pricing
-      ↓
-pricing sano
-      ↓
-actualizar hipótesis
-      ↓
-comparar instancias
-      ↓
-checkout-3 concentra fallas
-      ↓
-comparar paths
-      ↓
-degradación localizada en el path checkout-3 → pricing-api
-```
-
-La investigación dentro del sandbox termina cuando la evidencia permite localizar la degradación en ese path. Identificar Toxiproxy o el mecanismo físico exacto de inyección no forma parte del objetivo y debe permanecer inaccesible al investigador.
+El lab no prescribe una ruta de troubleshooting, servicios o réplicas que deban observarse primero, consultas PromQL, hipótesis, pasos, happy path ni texto de conclusión. Investigaciones distintas pueden seguir rutas, longitudes y resultados intermedios diferentes si respetan la frontera de evidencia.
 
 ---
 
@@ -1471,11 +1321,11 @@ OpenCode solo debería cambiarlo si aparece un impedimento concreto.
 
 ---
 
-# 43. Estrategia de grabación
+# 43. Estrategia de grabación (Internal Operator)
 
-La sesión real puede durar lo necesario.
+Esta información es exclusiva de Internal Operator: no forma parte de Baseline ni Protocol, no es una tercera condición experimental y no puede estar disponible desde investigator, OpenCode, `operator_net` desde el sandbox ni el filesystem visible a participantes.
 
-La grabación final del workshop mostrará solo decisiones relevantes.
+La sesión real puede durar lo necesario. La grabación final del workshop mostrará solo decisiones relevantes.
 
 ## Momento 1 — AMPLIAR
 
@@ -1583,21 +1433,18 @@ Texto suficientemente grande para streaming.
 
 # 46. Criterios pedagógicos de aceptación
 
-El lab **no está terminado** solo porque produce 33 % de errores.
+El lab no está terminado solo porque produce 33 % de errores. La aceptación pedagógica evalúa una investigación, no qué modelo llega antes a una respuesta.
 
-Está terminado cuando una investigación permite naturalmente:
+Protocol debe permitir naturalmente:
 
-* empezar con hechos;
-* generar 2–3 hipótesis humanas;
-* pedir alternativas al LLM;
-* obtener hipótesis razonables pero no necesariamente correctas;
-* seleccionar pruebas por información;
-* debilitar `pricing degradado`;
-* actualizar el investigation log;
-* cambiar observación de agregado a por instancia;
-* descubrir `checkout-3`;
-* localizar el problema en su path;
-* llegar a una conclusión mediante evidencia.
+* distinguir hechos de interpretaciones;
+* sostener hipótesis alternativas;
+* formular predicción, prueba y falsificador antes de una prueba significativa;
+* usar evidencia para actualizar o descartar hipótesis;
+* evitar shotgun debugging y conclusiones prematuras;
+* respetar la frontera de evidencia sin revelar root cause, happy path ni mecanismo físico.
+
+Baseline y Protocol pueden recorrer caminos, usar texto, concluir o detenerse de forma diferente. No se exige una misma ruta, conclusión, cantidad de pasos ni uniformidad de respuestas.
 
 ---
 
@@ -1886,53 +1733,46 @@ No montar:
 
 ---
 
-## Phase 7 — Investigation protocol
+## Phase 7 — Superficies experimentales conceptuales
 
-Crear:
-
-```text
-INVESTIGATION_PROTOCOL.md
-investigation.md
-architecture.md
-```
-
-Validar manualmente una investigación usando shell antes de usar OpenCode.
+Definir Baseline, Protocol e Internal Operator sin implementar perfiles físicos.
 
 ### Acceptance
 
-La degradación puede localizarse en el path `checkout-3 → pricing-api` usando únicamente información disponible al investigador. No se exige descubrir el mecanismo físico exacto.
+* Baseline y Protocol tienen las mismas capacidades técnicas, evidencia disponible, arquitectura lógica, incidente, estado inicial, herramientas, métricas, logs e interfaces;
+* la evidencia disponible al investigator permite localizar lógicamente la degradación en `checkout-3 → pricing-api`, sin revelar el mecanismo físico; Baseline y Protocol no están obligados a seguir esa ruta, alcanzar esa conclusión ni usarla como trayectoria de éxito prescrita;
+* la única diferencia deliberada es el método Protocol;
+* Internal Operator es inaccesible desde investigator, OpenCode, `operator_net` desde el sandbox y el filesystem visible a participantes, y nunca se monta en investigator;
+* ningún artefacto de investigador expone la solución física, Toxiproxy ni el mecanismo de falla.
 
 ---
 
-## Phase 8 — OpenCode dry run
+## Phase 8 — Comparative dry run
 
-Ejecutar una investigación real.
+Ejecutar sesiones independientes con Model A + Baseline y Model A + Protocol. Puede repetirse opcionalmente con otros modelos, siempre en sesiones independientes; no es benchmarking competitivo.
 
-No dirigirlo hacia la respuesta.
+Evaluar comparativamente:
 
-Evaluar:
+* hechos frente a interpretaciones;
+* hipótesis alternativas;
+* predicciones y falsificadores;
+* shotgun debugging;
+* root cause prematura;
+* uso de evidencia;
+* actualizaciones de hipótesis;
+* respeto de la frontera de evidencia.
 
-* hipótesis generadas;
-* pruebas propuestas;
-* respeto de evidence boundary;
-* mantenimiento del log;
-* tendencia a shotgun debugging.
-
-Ajustar solamente el **protocolo**, no darle pistas del escenario.
+No exigir el mismo camino, texto, conclusión, cantidad de pasos ni uniformidad de respuestas. Ajustar únicamente el método Protocol, sin agregar pistas específicas del escenario.
 
 ---
 
 ## Phase 9 — Pedagogical acceptance
 
-Realizar múltiples sesiones.
+Realizar múltiples sesiones independientes. El lab se considera pedagógicamente válido si al menos una investigación Protocol produce naturalmente:
 
-El lab se considera pedagógicamente válido si al menos una sesión produce naturalmente:
+> **HYPOTHESIS → PREDICTION → FALSIFICATION ATTEMPT → EVIDENCE → UPDATE**
 
-> **ampliar → intentar romper → actualizar**
-
-sin que OpenCode lea la solución.
-
-No se exige que todas las ejecuciones sigan exactamente el mismo camino.
+sin root cause, happy path, mecanismo físico ni pistas específicas del escenario. La comparación Baseline/Protocol es evidencia de comportamiento de investigación, no benchmarking de modelos.
 
 ---
 
@@ -1958,20 +1798,19 @@ Guardar grabación original sin editar.
 
 # 50. Riesgos y mitigaciones
 
-| Riesgo                                        | Mitigación                                                               |
-| --------------------------------------------- | ------------------------------------------------------------------------ |
-| OpenCode encuentra Toxiproxy leyendo archivos | sandbox real, no instrucciones                                           |
-| OpenCode llega inmediatamente a checkout-3    | aceptar la hipótesis, exigir evidencia; humano decide prueba informativa |
-| Grafana revela checkout-3 demasiado pronto    | Overview agregado como dashboard inicial                                 |
-| Pricing parece lento por el proxy             | usar latency downstream; pricing mide solo su procesamiento              |
-| Load distribution fluctúa                     | gateway round-robin determinista                                         |
-| Reset conserva métricas viejas                | borrar TSDB/logs en reset fuerte                                         |
-| OpenCode hace shotgun debugging               | protocolo obliga hypothesis/prediction/test                              |
-| Lab parece tutorial de networking             | resolución comprimida                                                    |
-| Grabación depende de OpenCode en vivo         | grabar previamente múltiples tomas                                       |
-| Versiones cambian                             | pins exactos; nunca latest                                               |
-| Logs revelan proxy                            | usar nombres lógicos y tests anti-leak                                   |
-| Demasiados componentes                        | rechazar cualquier componente que no cambie una decisión pedagógica      |
+| Riesgo | Mitigación |
+| --- | --- |
+| El investigador encuentra Toxiproxy leyendo archivos | sandbox real, no instrucciones |
+| Baseline y Protocol reciben evidencia o acceso diferente | validar igualdad de capacidades y evidencia antes del dry run |
+| Internal Operator llega al sandbox o al filesystem de participantes | mantenerlo fuera de investigator, OpenCode y las rutas accesibles desde `operator_net` del sandbox |
+| Protocol se convierte en una ruta hacia la respuesta | prohibir orden, hipótesis, consultas, happy path y pistas específicas del escenario |
+| El modelo hace shotgun debugging | Protocol requiere hipótesis, predicción, prueba y falsificador |
+| Grafana revela checkout-3 demasiado pronto | Overview agregado como dashboard inicial |
+| Pricing parece lento por el proxy | usar latency downstream; pricing mide solo su procesamiento |
+| Load distribution fluctúa | gateway round-robin determinista |
+| Reset conserva métricas viejas | borrar TSDB/logs en reset fuerte |
+| Logs revelan proxy | usar nombres lógicos y tests anti-leak |
+| Demasiados componentes | rechazar cualquier componente que no cambie una decisión pedagógica |
 
 ---
 
@@ -1995,17 +1834,18 @@ El lab está terminado únicamente cuando todas estas afirmaciones son verdadera
 [ ] Grafana by-instance revela claramente checkout-3
 [ ] logs aportan evidencia sin revelar Toxiproxy
 [ ] investigator no puede acceder a la configuración de falla
-[ ] OpenCode puede investigar usando herramientas reales
-[ ] investigation log puede mantenerse durante la sesión
-[ ] pricing-degraded puede ser debilitada mediante evidencia
-[ ] global-checkout-problem puede ser debilitada
-[ ] problema puede localizarse en checkout-3
-[ ] degradación puede localizarse en el path checkout-3 → pricing-api
+[ ] Baseline y Protocol exponen las mismas capacidades, evidencia y acceso
+[ ] la única diferencia entre Baseline y Protocol es el método
+[ ] Internal Operator no es accesible desde investigator, OpenCode, operator_net del sandbox ni filesystem de participantes
+[ ] Internal Operator nunca se monta en investigator
+[ ] Protocol puede registrar FACTS, CURRENT HYPOTHESES, NEXT TEST, EVIDENCE y UPDATED / DISCARDED con sus campos requeridos
+[ ] Baseline no requiere la estructura Protocol
+[ ] al menos una sesión Protocol produce hypothesis/prediction/falsification attempt/evidence/update
 [ ] la investigación no requiere revelar Toxiproxy ni el mecanismo físico exacto
 [ ] reset reproduce un estado limpio
 [ ] cinco ciclos fault/reset consecutivos funcionan
 [ ] sesión completa puede grabarse
-[ ] grabación contiene ampliar/falsar/actualizar
+[ ] la comparación es evidencia de comportamiento de investigación, no benchmarking de modelos
 ```
 
 ---
@@ -2030,21 +1870,14 @@ Durante la sesión no hacemos un tour del repo.
 
 ---
 
-# 53. Prompt inicial esperado para la sesión de troubleshooting
+# 53. Inicio de sesión por perfil
 
-No debe contener la solución.
+El inicio no contiene solución, root cause, happy path, mecanismo físico ni pistas específicas del escenario.
 
-Conceptualmente:
+* **Baseline:** recibe el incidente visible y las mismas herramientas, evidencia y acceso de Protocol, sin método explícito, instrucciones de falsación, orden sugerido, hipótesis ni consultas PromQL sugeridas.
+* **Protocol:** recibe el mismo incidente visible y las mismas herramientas, evidencia y acceso, más la única diferencia permitida: el método `FACTS → HYPOTHESES → PREDICTION → TEST → FALSIFIER → EVIDENCE → UPDATE` y su registro.
 
-> Tenemos un incidente en `checkout-api`.
-> El error rate agregado está alrededor del 33 % y vemos timeouts cuando checkout llama a pricing.
-> Estos son los hechos conocidos y estas son nuestras hipótesis iniciales.
->
-> Quiero que trabajes siguiendo `INVESTIGATION_PROTOCOL.md` y mantengas `investigation.md`.
->
-> Primero, buscá hipótesis relevantes que no estemos considerando. No elijas todavía una root cause ni conviertas ninguna hipótesis en un hecho.
-
-Después la investigación sigue con evidencia.
+Las sesiones son independientes. No se exige que produzcan el mismo texto, recorrido, conclusión ni cantidad de pasos.
 
 ---
 
