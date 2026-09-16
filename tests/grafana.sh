@@ -80,6 +80,23 @@ if actual != expected:
 ' "$uid" "$title" <<<"$response"
 }
 
+require_pricing_error_rate_axis() {
+  local response
+
+  response="$(grafana_get /api/dashboards/uid/lab-overview)" || return 1
+  python3 -c '
+import json, sys
+panels = json.load(sys.stdin).get("dashboard", {}).get("panels", [])
+panel = next((panel for panel in panels if panel.get("id") == 4 and panel.get("title") == "Pricing error rate"), None)
+if panel is None:
+    raise SystemExit("Pricing error rate panel is missing")
+defaults = panel.get("fieldConfig", {}).get("defaults", {})
+expected = {"unit": "percentunit", "min": 0, "max": 1}
+if defaults != expected:
+    raise SystemExit(f"Pricing error rate defaults = {defaults!r}, want {expected!r}")
+' <<<"$response"
+}
+
 require_overview_home() {
   local response
 
@@ -111,6 +128,7 @@ fi
 wait_for_grafana
 require_prometheus_datasource
 require_dashboard_contract lab-overview 'Lab Overview' "$OVERVIEW_QUERIES"
+require_pricing_error_rate_axis
 require_dashboard_contract checkout-by-instance 'Checkout by Instance' "$BY_INSTANCE_QUERIES"
 require_overview_home
 
