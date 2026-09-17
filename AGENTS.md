@@ -67,6 +67,12 @@ Phase 0 placeholders intentionally fail until their owning phase is implemented.
 - Support Docker Compose v2 on Linux and macOS, for `amd64` and `arm64`.
 - Authentication for OpenCode must be provided at runtime without preselecting a model provider.
 
+## Development process
+
+- Do not use Organic Driven Development (ODD) for this repository.
+- Do not create or maintain `odd/` task or tracking artifacts.
+- Follow the phase, acceptance, and testing workflow defined in this file and `Especificacion_Lab.md`.
+
 ## Git policy
 
 - This is a solo-maintainer repository; keep changes and commits small and direct.
