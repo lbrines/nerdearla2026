@@ -5,4 +5,5 @@
 # Optional repository-local lab and OpenCode runtime data
 /.lab-data/
 /.opencode-data/
+/investigation-output/
 /auth.json

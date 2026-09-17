@@ -2,21 +2,24 @@
 
 **Estado: Phase 3.3 agrega `make reset`. Para el proyecto fijo del lab ejecuta `docker compose down --volumes --remove-orphans`, luego `make start` y su verificación sana. `./tests/reset.sh` confirmó el reset desde detenido y cinco ciclos consecutivos degradado → reset → sano. El volumen nombrado de logs de la Phase 4.2 también se elimina con ese reset. `make record-ready` sigue siendo un placeholder que falla intencionalmente; Phase 3 no está completa.**
 
-**Phase 4.1 implementa métricas de checkout, pricing y gateway, verificables directamente en `/metrics` con `./tests/observability.sh`. Phase 4.2 agrega JSONL correlacionado de checkout y pricing; Phase 4.3A completa la instrumentación JSONL de gateway y load generator en stdout y el volumen compartido. Phase 4.3B verifica con `./tests/logging.sh` la cadena runtime por IDs reales y que `stop` conserva el marcador, y con `./tests/reset.sh` que `reset` lo elimina, recrea los seis logs y cambia el boot prefix. Phase 5.1 agrega Prometheus con scrape explícito cada 5 segundos y `./tests/prometheus.sh` consulta su API para validar los estados sano y degradado. Phase 5.2 agrega Grafana provisionado en `http://127.0.0.1:3000`; `./tests/grafana.sh` verifica su API anónima, datasource y dashboards. Phase 6.1 agrega el sandbox investigator con logs read-only y `./tests/isolation.sh` valida su aislamiento técnico. Phase 7A completa el contrato de Baseline, Protocol e Internal Operator; la implementación y validación de perfiles de Phase 7B deben pasar antes del dry run comparativo de Phase 8. La acceptance integrada de Phase 4 sigue pendiente; Phase 4 no está completa y `make record-ready` sigue diferido. Las imágenes y herramientas se fijan en `versions.env`; los módulos Go se fijan en `go.mod` y `go.sum`.**
+**Phase 4.1 implementa métricas de checkout, pricing y gateway, verificables directamente en `/metrics` con `./tests/observability.sh`. Phase 4.2 agrega JSONL correlacionado de checkout y pricing; Phase 4.3A completa la instrumentación JSONL de gateway y load generator en stdout y el volumen compartido. Phase 4.3B verifica con `./tests/logging.sh` la cadena runtime por IDs reales y que `stop` conserva el marcador, y con `./tests/reset.sh` que `reset` lo elimina, recrea los seis logs y cambia el boot prefix. Phase 5.1 agrega Prometheus con scrape explícito cada 5 segundos y `./tests/prometheus.sh` consulta su API para validar los estados sano y degradado. Phase 5.2 agrega Grafana provisionado en `http://127.0.0.1:3000`; `./tests/grafana.sh` verifica su API anónima, datasource y dashboards. Phase 6.1 agrega el sandbox investigator con logs read-only y `./tests/isolation.sh` valida su aislamiento técnico. Phase 7B implementa los perfiles one-shot Baseline y Protocol, con assets comunes neutrales, evidencia Protocol persistente y material Internal Operator separado; `./tests/profiles.sh` y `./tests/isolation.sh` los validan localmente. Phase 7B sigue incompleta: el acceso irrestricto a Internet puede alcanzar el repositorio actualmente público con detalles de implementación restringidos. La decisión de privacidad o manejo de esas fuentes queda pendiente después de las pruebas manuales. La acceptance integrada de Phase 4 sigue pendiente; Phase 4 no está completa y `make record-ready` sigue diferido. Las imágenes y herramientas se fijan en `versions.env`; los módulos Go se fijan en `go.mod` y `go.sum`.**
 
 La autoridad técnica del lab es [Especificacion_Lab.md](Especificacion_Lab.md).
 
-## Sandbox investigator
+## Perfiles investigator
 
-El sandbox es una shell one-shot opt-in: no agrega un proceso residente ni cambia los comandos existentes del lab.
+Cada perfil es una shell one-shot opt-in: no agrega un proceso residente ni cambia los comandos existentes del lab.
 
 1. Levantá el lab con `make start`.
-2. Creá el directorio persistente aprobado: `mkdir -p "$HOME/.local/share/nerdearla2026/opencode"`.
-3. Abrí la shell con:
+2. Creá los directorios persistentes: `mkdir -p "$HOME/.local/share/nerdearla2026/opencode" investigation-output`.
+3. Abrí Baseline o Protocol:
 
    ```bash
    docker compose --env-file versions.env --project-name nerdearla2026 --file scenario/compose.yaml \
-     --profile investigator run --rm --no-deps investigator
+     --profile investigator-baseline run --rm --no-deps investigator-baseline
+
+   docker compose --env-file versions.env --project-name nerdearla2026 --file scenario/compose.yaml \
+     --profile investigator-protocol run --rm --no-deps investigator-protocol
    ```
 
 4. Ejecutá `opencode` y completá el primer login con el proveedor que elijas en runtime.
@@ -24,10 +27,18 @@ El sandbox es una shell one-shot opt-in: no agrega un proceso residente ni cambi
 | Tema | Decisión |
 | --- | --- |
 | Datos de OpenCode | La única ruta persistente es `OPENCODE_DATA_DIR`; por defecto es `$HOME/.local/share/nerdearla2026/opencode` en el host y se monta en `/home/node/.local/share/opencode`. Conserva credenciales y sesiones provistas en runtime. |
-| Workspace | `/investigator-workspace` es escribible pero efímero y se descarta con el container. Las superficies conceptuales Baseline y Protocol se definen en la especificación y todavía no se implementan como perfiles. No existe un bind persistente para notas: exportalas antes de salir si querés conservarlas. |
-| Acceso al lab | Solo `operator_net` y `/var/log/lab` read-only; no se montan el repositorio, `scenario` ni el socket de Docker. |
+| Workspace y evidencia | `/investigator-workspace` es escribible y efímero. Ambos perfiles montan la misma salida persistente en `/investigation-output`, configurable con `INVESTIGATION_OUTPUT_DIR` y por defecto `investigation-output/`. Solo Protocol inicializa, sin sobrescribir, su template en `/investigator-workspace/investigation.md`; Baseline no crea ni recibe ese archivo. |
+| Acceso al lab | Solo `operator_net` y `/var/log/lab` read-only; no se montan el repositorio, `scenario`, Internal Operator ni el socket de Docker. El acceso a Internet es normal e irrestricto. |
 
 `OPENCODE_DATA_DIR` solo permite una ruta conocida alternativa, por ejemplo para una prueba hermética; no hay descubrimiento ni creación automática de directorios. La autenticación no se incluye en la imagen ni selecciona un proveedor.
+
+No uses los perfiles experimentales para sesiones comparativas hasta resolver el acceso al repositorio público y a cualquier otra fuente externa que pueda revelar material restringido.
+
+## Verificación de perfiles
+
+```bash
+./tests/profiles.sh
+```
 
 ## Verificación de aislamiento
 

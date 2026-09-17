@@ -11,10 +11,11 @@ RUN apt-get update \
 RUN mkdir -p /investigator-workspace /home/node/.local/share/opencode \
     && chown -R node:node /investigator-workspace /home/node/.local
 
-COPY --chown=node:node investigator/README.md investigator/architecture.md investigator/INVESTIGATION_PROTOCOL.md investigator/investigation.md /investigator-workspace/
-COPY --chown=node:node investigator/bin/promq /investigator-workspace/bin/promq
-RUN chmod 0755 /investigator-workspace/bin/promq
+COPY --chown=node:node investigator/common/ /investigator-workspace/
+COPY --chown=node:node investigator/entrypoint.sh /usr/local/bin/investigator-entrypoint
+RUN chmod 0755 /investigator-workspace/bin/promq /usr/local/bin/investigator-entrypoint
 
 USER node
 WORKDIR /investigator-workspace
+ENTRYPOINT ["/usr/local/bin/investigator-entrypoint"]
 CMD ["bash"]

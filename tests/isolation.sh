@@ -3,7 +3,7 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 source "$SCRIPT_DIR/helpers.sh"
-COMPOSE_PROJECT_NAME="phase6-isolation-$$"
+COMPOSE_PROJECT_NAME="phase7b-isolation-$$"
 TEST_DATA_DIR=""
 
 cleanup_isolation() {
@@ -39,20 +39,22 @@ read_opencode_version() {
   OPENCODE_CLI_VERSION="$(printf '%s\n' "$values" | awk 'NF { print; exit }')"
 }
 
-run_investigator() {
-  compose --profile investigator run --rm --no-deps --no-TTY \
-    --env "EXPECTED_OPENCODE_VERSION=$OPENCODE_CLI_VERSION" investigator bash -s
+run_baseline() {
+  compose --profile investigator-baseline run --rm --no-deps --no-TTY \
+    --env "EXPECTED_OPENCODE_VERSION=$OPENCODE_CLI_VERSION" investigator-baseline bash -s
 }
 
 read_opencode_version
 TEST_DATA_DIR="$(mktemp -d "${TMPDIR:-/tmp}/nerdearla2026-isolation.XXXXXX")"
-export OPENCODE_DATA_DIR="$TEST_DATA_DIR"
-printf '%s\n' '{"type":"inert"}' > "$TEST_DATA_DIR/auth.json"
-chmod 600 "$TEST_DATA_DIR/auth.json"
+export OPENCODE_DATA_DIR="$TEST_DATA_DIR/opencode"
+export INVESTIGATION_OUTPUT_DIR="$TEST_DATA_DIR/investigation-output"
+mkdir -p "$OPENCODE_DATA_DIR" "$INVESTIGATION_OUTPUT_DIR"
+printf '%s\n' '{"type":"inert"}' > "$OPENCODE_DATA_DIR/auth.json"
+chmod 600 "$OPENCODE_DATA_DIR/auth.json"
 trap cleanup_isolation EXIT
 
 if ! compose up --build --detach; then
-  fail 'could not build and start the Phase 6.1 lab'
+  fail 'could not build and start the Baseline isolation lab'
 fi
 wait_for_health pricing-api http://127.0.0.1:18080/healthz
 wait_for_health checkout-1 http://127.0.0.1:18081/healthz
@@ -63,11 +65,11 @@ wait_for_health prometheus http://127.0.0.1:19090/-/ready
 wait_for_health grafana http://127.0.0.1:3000/api/health
 verify_runtime_topology
 
-if ! compose --profile investigator run --rm --no-deps --no-TTY investigator bash -ec 'test "$(id -u)" -ne 0'; then
-  fail 'investigator image does not run as a non-root user'
+if ! compose --profile investigator-baseline run --rm --no-deps --no-TTY investigator-baseline bash -ec 'test "$(id -u)" -ne 0'; then
+  fail 'Baseline investigator image does not run as a non-root user'
 fi
 
-if ! run_investigator <<'INVESTIGATOR'
+if ! run_baseline <<'INVESTIGATOR'
 set -euo pipefail
 
 for tool in bash curl jq getent dig grep rg opencode; do
@@ -109,27 +111,27 @@ fi
 ! env | grep -E '(^|_)(TOXIPROXY|FAULT|BROKEN_INSTANCE|INJECTED_LATENCY)=' >/dev/null
 INVESTIGATOR
 then
-  fail 'investigator sandbox boundary assertions failed'
+  fail 'Baseline investigator sandbox boundary assertions failed'
 fi
 
-if ! run_investigator <<'INVESTIGATOR'
+if ! run_baseline <<'INVESTIGATOR'
 set -euo pipefail
 [ "$(id -u)" -ne 0 ]
 [ "$(cat "$HOME/.local/share/opencode/auth.json")" = '{"type":"inert"}' ]
 printf '%s\n' preserved > "$HOME/.local/share/opencode/isolation-marker"
 INVESTIGATOR
 then
-  fail 'investigator could not use the synthetic OpenCode data directory'
+  fail 'Baseline investigator could not use the synthetic OpenCode data directory'
 fi
 
-if ! run_investigator <<'INVESTIGATOR'
+if ! run_baseline <<'INVESTIGATOR'
 set -euo pipefail
 [ "$(id -u)" -ne 0 ]
 [ "$(cat "$HOME/.local/share/opencode/auth.json")" = '{"type":"inert"}' ]
 [ "$(cat "$HOME/.local/share/opencode/isolation-marker")" = preserved ]
 INVESTIGATOR
 then
-  fail 'investigator data did not persist across one-shot containers'
+  fail 'Baseline investigator data did not persist across one-shot containers'
 fi
 
-printf 'isolation acceptance passed: investigator has only operator access and preserves synthetic OpenCode data.\n'
+printf 'isolation acceptance passed: Baseline has only operator access and preserves synthetic OpenCode data.\n'

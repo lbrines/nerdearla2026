@@ -143,8 +143,9 @@ services:
     depends_on:
       - checkout-gateway
 
-  investigator:
-    profiles: ["investigator"]
+  investigator-baseline:
+    profiles: ["investigator-baseline"]
+    image: nerdearla2026-investigator:${OPENCODE_CLI_VERSION}
     build:
       context: ..
       dockerfile: investigator/Dockerfile
@@ -153,9 +154,32 @@ services:
         OPENCODE_CLI_VERSION: ${OPENCODE_CLI_VERSION}
     networks:
       - operator_net
+    environment:
+      INVESTIGATOR_PROFILE: baseline
     volumes:
       - lab_logs:/var/log/lab:ro
       - ${OPENCODE_DATA_DIR:-$HOME/.local/share/nerdearla2026/opencode}:/home/node/.local/share/opencode
+      - ${INVESTIGATION_OUTPUT_DIR:-../investigation-output}:/investigation-output
+
+  investigator-protocol:
+    profiles: ["investigator-protocol"]
+    image: nerdearla2026-investigator:${OPENCODE_CLI_VERSION}
+    build:
+      context: ..
+      dockerfile: investigator/Dockerfile
+      args:
+        NODE_VERSION: ${NODE_VERSION}
+        OPENCODE_CLI_VERSION: ${OPENCODE_CLI_VERSION}
+    networks:
+      - operator_net
+    environment:
+      INVESTIGATOR_PROFILE: protocol
+    volumes:
+      - lab_logs:/var/log/lab:ro
+      - ${OPENCODE_DATA_DIR:-$HOME/.local/share/nerdearla2026/opencode}:/home/node/.local/share/opencode
+      - ${INVESTIGATION_OUTPUT_DIR:-../investigation-output}:/investigation-output
+      - ../investigator/profiles/protocol/INVESTIGATION_PROTOCOL.md:/investigator-workspace/INVESTIGATION_PROTOCOL.md:ro
+      - ../investigator/profiles/protocol/investigation.md:/protocol-template/investigation.md:ro
 
 volumes:
   lab_logs:
