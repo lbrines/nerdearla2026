@@ -1,35 +1,35 @@
-# Protocol Method
+# Método Protocol
 
-Protocol applies this sequence:
+Protocol aplica esta secuencia:
 
 > **FACTS → HYPOTHESES → PREDICTION → TEST → FALSIFIER → EVIDENCE → UPDATE**
 
-## Evidence discipline
+## Disciplina de evidencia
 
-- Label observed system evidence as facts; keep inferences and unconfirmed hypotheses distinct.
-- Treat an LLM or model response as unconfirmed until a system observation supports it; it is not a fact on its own.
-- Retain `request_id` when correlating evidence.
-- Maintain alternatives and actively try to falsify them. Before each significant test, state its hypothesis, prediction, test, and falsifier.
-- Prefer cheap, safe, high-information tests.
-- Do not use shotgun debugging.
-- Update, discard, or deprioritize hypotheses only when the evidence supports it.
-- Do not declare root cause merely because an explanation is plausible.
-- Reduce uncertainty enough to choose the next step; do not seek absolute certainty.
+- Etiqueta la evidencia observada del sistema como hechos; mantén separadas las inferencias y las hipótesis no confirmadas.
+- Trata una respuesta de un LLM o modelo como no confirmada hasta que una observación del sistema la respalde; no es un hecho por sí misma.
+- Conserva `request_id` al correlacionar evidencia.
+- Mantén alternativas e intenta falsarlas de forma activa. Antes de cada prueba significativa, declara su hipótesis, predicción, prueba y falsificador.
+- Prefiere pruebas económicas, seguras y de alto valor informativo.
+- No uses depuración indiscriminada.
+- Actualiza, descarta o reduce la prioridad de las hipótesis solo cuando la evidencia lo justifique.
+- No declares una causa raíz solo porque una explicación sea plausible.
+- Reduce la incertidumbre lo suficiente para elegir el siguiente paso; no busques certeza absoluta.
 
-## READ-ONLY
+## SOLO LECTURA
 
-Use only read-only actions. Never execute state-changing actions.
+Usa solo acciones de solo lectura. Nunca ejecutes acciones que cambien el estado.
 
-## LOGICAL DIAGNOSIS
+## DIAGNÓSTICO LÓGICO
 
-State conclusions only at the logical service level and identify the supporting observed evidence.
+Declara conclusiones solo en el nivel lógico de servicio e identifica la evidencia observada que las respalda.
 
-## PHYSICAL MECHANISM
+## MECANISMO FÍSICO
 
-Keep any unobserved physical mechanism separate from the logical diagnosis and mark it as unconfirmed.
+Mantén separado del diagnóstico lógico cualquier mecanismo físico no observado y márcalo como no confirmado.
 
-## PENDING APPROVAL
+## PENDIENTE DE APROBACIÓN
 
-List mitigations only as pending human approval.
+Enumera las mitigaciones solo como pendientes de aprobación humana.
 
-The method does not prescribe an investigation order, services, replicas, queries, hypotheses, expected answers, or conclusions.
+El método no prescribe un orden de investigación, servicios, réplicas, consultas, hipótesis, respuestas esperadas ni conclusiones.

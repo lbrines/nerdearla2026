@@ -29,7 +29,7 @@ wait_for_200() {
       return 0
     fi
     if (( SECONDS >= deadline )); then
-      fail "$name did not return HTTP 200 at $url within ${HEALTH_TIMEOUT_SECONDS} seconds (last status: ${status:-unavailable})"
+      fail "$name no devolvió HTTP 200 en $url en ${HEALTH_TIMEOUT_SECONDS} segundos (último estado: ${status:-no disponible})"
       return 1
     fi
     sleep 1
@@ -45,11 +45,11 @@ expect_status() {
 
   if ! status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 2 \
     -H "X-Request-ID: $request_id" "$url")"; then
-    fail "$name request failed"
+    fail "Falló la solicitud a $name"
     return 1
   fi
   if [ "$status" != "$expected" ]; then
-    fail "$name returned $status; want $expected"
+    fail "$name devolvió $status; se esperaba $expected"
     return 1
   fi
 }
@@ -73,7 +73,7 @@ wait_for_neutral_proxy() {
 
   while ! neutral_proxy_present; do
     if (( SECONDS >= deadline )); then
-      fail 'toxiproxy must expose exactly one enabled pricing proxy on wildcard port 8666 upstream pricing-api:8080 with zero toxics within 60 seconds'
+      fail 'toxiproxy debe exponer exactamente un proxy pricing habilitado en el puerto comodín 8666, con upstream pricing-api:8080 y cero toxics en un plazo de 60 segundos'
       return 1
     fi
     sleep 1
@@ -101,19 +101,19 @@ verify_timeout_debug() {
 
   if ! response="$(curl --silent --show-error --fail --max-time 2 \
     -H "X-Request-ID: $request_id" http://127.0.0.1:18083/debug/upstream)"; then
-    fail 'checkout-3 debug upstream request failed'
+    fail 'Falló la solicitud de depuración de upstream de checkout-3'
     return 1
   fi
   case "$response" in
     *'"outcome":"timeout"'*) ;;
     *)
-      fail "checkout-3 debug outcome is not timeout: $response"
+      fail "El outcome de depuración de checkout-3 no es timeout: $response"
       return 1
       ;;
   esac
   elapsed_ms="$(printf '%s\n' "$response" | awk -F'"elapsed_ms":' 'NF == 2 { print $2 }' | tr -d '}[:space:]')"
   if ! [[ "$elapsed_ms" =~ ^[0-9]+$ ]] || [ "$elapsed_ms" -lt 480 ]; then
-    fail "checkout-3 debug elapsed_ms is ${elapsed_ms:-missing}; want at least 480"
+    fail "elapsed_ms de depuración de checkout-3 es ${elapsed_ms:-faltante}; se esperaba al menos 480"
     return 1
   fi
 }
@@ -131,14 +131,14 @@ verify_controlled_window() {
   for ((request = 1; request <= 90; request++)); do
     if ! status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 2 \
       -H "X-Request-ID: control-window-$request" http://127.0.0.1:18084/checkout)"; then
-      fail "gateway request $request failed"
+      fail "Falló la solicitud $request al gateway"
       return 1
     fi
     case "$status" in
       200) successes=$((successes + 1)) ;;
       504) timeouts=$((timeouts + 1)) ;;
       *)
-        fail "gateway request $request returned $status; want 200 or 504"
+        fail "La solicitud $request al gateway devolvió $status; se esperaba 200 o 504"
         return 1
         ;;
     esac
@@ -147,7 +147,7 @@ verify_controlled_window() {
   case "$state" in
     healthy)
       if [ "$successes" -ne 90 ] || [ "$timeouts" -ne 0 ]; then
-        fail "healthy gateway results were 200=$successes 504=$timeouts; want 200=90 504=0"
+        fail "Los resultados healthy del gateway fueron 200=$successes 504=$timeouts; se esperaba 200=90 504=0"
         return 1
       fi
       expect_status checkout-1 200 control-probe-11 http://127.0.0.1:18081/checkout || return $?
@@ -156,7 +156,7 @@ verify_controlled_window() {
       ;;
     degraded)
       if [ "$successes" -ne 60 ] || [ "$timeouts" -ne 30 ]; then
-        fail "degraded gateway results were 200=$successes 504=$timeouts; want 200=60 504=30"
+        fail "Los resultados degraded del gateway fueron 200=$successes 504=$timeouts; se esperaba 200=60 504=30"
         return 1
       fi
       expect_status checkout-1 200 control-probe-11 http://127.0.0.1:18081/checkout || return $?
@@ -165,7 +165,7 @@ verify_controlled_window() {
       verify_timeout_debug verify-control-probe-02 || return $?
       ;;
     *)
-      fail "unknown scenario state: $state"
+      fail "Estado de escenario desconocido: $state"
       return 1
       ;;
   esac
@@ -186,7 +186,7 @@ verify_restore_loadgen() {
   else
     restoration_status=$?
   fi
-  printf 'labctl: could not restore load-generator after the controlled request sequence\n' >&2
+  printf 'labctl: no se pudo restaurar load-generator después de la secuencia controlada de solicitudes\n' >&2
   return "$restoration_status"
 }
 
@@ -202,10 +202,10 @@ verify_exit_restore() {
   fi
   if [ "$restoration_status" -ne 0 ]; then
     if [ "$primary_status" -eq 0 ]; then
-      printf 'labctl: verification passed, but load-generator restoration failed\n' >&2
+      printf 'labctl: la verificación se completó, pero falló la restauración de load-generator\n' >&2
       return "$restoration_status"
     fi
-    printf 'labctl: verification failed; load-generator restoration also failed\n' >&2
+    printf 'labctl: la verificación falló; también falló la restauración de load-generator\n' >&2
   fi
   return "$primary_status"
 }
@@ -216,7 +216,7 @@ verify_interrupted() {
 
   trap - EXIT INT TERM
   if ! verify_restore_loadgen; then
-    printf 'labctl: verification interrupted by %s; load-generator restoration also failed\n' "$signal" >&2
+    printf 'labctl: la verificación fue interrumpida por %s; también falló la restauración de load-generator\n' "$signal" >&2
   fi
   exit "$signal_status"
 }
@@ -226,24 +226,24 @@ verify() {
 
   VERIFY_LOADGEN_STOPPED=0
   if ! state="$("$LABFAULT" status "$COMPOSE_PROJECT_NAME")"; then
-    fail 'could not query the fault state'
+    fail 'No se pudo consultar el estado de la falla'
     return 1
   fi
   case "$state" in
     healthy|degraded) ;;
     *)
-      fail "unknown scenario state: $state"
+      fail "Estado de escenario desconocido: $state"
       return 1
       ;;
   esac
   if ! running_services="$(compose ps --status running --services load-generator)"; then
-    fail 'could not inspect load-generator state'
+    fail 'No se pudo inspeccionar el estado de load-generator'
     return 1
   fi
   case "$running_services" in
     load-generator)
       if ! compose stop load-generator; then
-        fail 'could not stop load-generator before the controlled request sequence'
+        fail 'No se pudo detener load-generator antes de la secuencia controlada de solicitudes'
         return 1
       fi
       VERIFY_LOADGEN_STOPPED=1
@@ -253,7 +253,7 @@ verify() {
       ;;
     '') ;;
     *)
-      fail "unexpected load-generator state: $running_services"
+      fail "Estado inesperado de load-generator: $running_services"
       return 1
       ;;
   esac
@@ -271,12 +271,12 @@ verify() {
   trap - EXIT INT TERM
   if [ "$verification_status" -ne 0 ]; then
     if [ "$restoration_status" -ne 0 ]; then
-      printf 'labctl: verification failed; load-generator restoration also failed\n' >&2
+      printf 'labctl: la verificación falló; también falló la restauración de load-generator\n' >&2
     fi
     return "$verification_status"
   fi
   if [ "$restoration_status" -ne 0 ]; then
-    printf 'labctl: verification passed, but load-generator restoration failed\n' >&2
+    printf 'labctl: la verificación se completó, pero falló la restauración de load-generator\n' >&2
     return "$restoration_status"
   fi
 }
@@ -289,7 +289,7 @@ start() {
 fault_on() {
   "$LABFAULT" on "$COMPOSE_PROJECT_NAME"
   verify_degraded_direct
-  printf '%s\n' 'Investigation scenario prepared. Continue with the next observation.'
+  printf '%s\n' 'Escenario de investigación preparado. Continúa con la siguiente observación.'
 }
 
 fault_off() {
@@ -307,7 +307,7 @@ reset() {
 }
 
 phase_3_placeholder() {
-  printf 'Phase 3 placeholder: operation "%s" is owned by a later Phase 3 review.\n' "$1" >&2
+  printf 'Marcador de posición de Phase 3: la operación "%s" pertenece a una revisión posterior de Phase 3.\n' "$1" >&2
   return 1
 }
 
@@ -316,7 +316,7 @@ if [ "${LABCTL_TEST_MODE:-}" = 1 ] && [ "${BASH_SOURCE[0]}" != "$0" ]; then
 fi
 
 if [ "$#" -ne 1 ]; then
-  printf 'usage: %s <operation>\n' "$0" >&2
+  printf 'uso: %s <operación>\n' "$0" >&2
   exit 2
 fi
 
@@ -330,8 +330,8 @@ case "$1" in
   stop) stop ;;
   record-ready) phase_3_placeholder "$1" ;;
   *)
-    printf 'unknown operation: %s\n' "$1" >&2
-    printf 'usage: %s <operation>\n' "$0" >&2
+    printf 'operación desconocida: %s\n' "$1" >&2
+    printf 'uso: %s <operación>\n' "$0" >&2
     exit 2
     ;;
 esac

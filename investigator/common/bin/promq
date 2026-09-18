@@ -2,11 +2,11 @@
 set -euo pipefail
 
 if [ "$#" -ne 1 ]; then
-  printf 'usage: promq <PromQL expression>\n' >&2
+  printf 'uso: promq <expresión PromQL>\n' >&2
   exit 2
 fi
 
 curl --fail-with-body --silent --show-error --get \
   --data-urlencode "query=$1" \
   http://prometheus:9090/api/v1/query |
-  jq -e 'if .status == "success" then . else error(.error // "Prometheus query failed") end'
+  jq -e 'if .status == "success" then . else error(.error // "Falló la consulta de Prometheus") end'

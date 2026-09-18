@@ -1,3 +1,3 @@
-# Incident
+# Incidente
 
-Checkout requests intermittently fail. Conduct a read-only, evidence-based investigation.
+Las solicitudes de checkout fallan de forma intermitente. Realiza una investigación de solo lectura basada en evidencia.

@@ -37,7 +37,7 @@ expect_placeholder() {
     return 1
   fi
   case "$output" in
-    *"Phase 3 placeholder: operation \"$operation\" is owned by a later Phase 3 review."*) ;;
+    *"Marcador de posición de Phase 3: la operación \"$operation\" pertenece a una revisión posterior de Phase 3."*) ;;
     *)
       printf 'lifecycle acceptance failed: %s did not report its Phase 3 ownership: %s\n' "$operation" "$output" >&2
       return 1
@@ -58,7 +58,7 @@ expect_unknown() {
     return 1
   fi
   case "$output" in
-    *'unknown operation: unknown'*'usage:'*) ;;
+    *'operación desconocida: unknown'*'uso:'*) ;;
     *)
       printf 'lifecycle acceptance failed: unknown operation did not report usage: %s\n' "$output" >&2
       return 1

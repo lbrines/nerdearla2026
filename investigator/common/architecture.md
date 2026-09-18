@@ -1,4 +1,4 @@
-# Logical Architecture
+# Arquitectura lógica
 
 ```text
 client
@@ -11,14 +11,14 @@ checkout-api
 pricing-api
 ```
 
-## Observable interfaces
+## Interfaces observables
 
-| Area | Available interface |
+| Área | Interfaz disponible |
 | --- | --- |
-| Checkout API | Public checkout endpoint and three logical replicas. Each replica provides `/healthz`, `/metrics`, and `/debug/upstream`. |
-| Pricing API | A pricing dependency with `/healthz` and `/metrics`. |
-| Logs | Read-only JSONL files at `/var/log/lab`. |
-| Prometheus | Queryable metrics. |
-| Grafana | Queryable dashboards. |
+| API de Checkout | Endpoint público de checkout y tres réplicas lógicas. Cada réplica proporciona `/healthz`, `/metrics` y `/debug/upstream`. |
+| API de Pricing | Una dependencia de pricing con `/healthz` y `/metrics`. |
+| Logs | Archivos JSONL de solo lectura en `/var/log/lab`. |
+| Prometheus | Métricas consultables. |
+| Grafana | Paneles consultables. |
 
-The diagram and names describe the logical architecture only.
+El diagrama y los nombres describen únicamente la arquitectura lógica.
