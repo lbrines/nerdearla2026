@@ -289,6 +289,7 @@ start() {
 fault_on() {
   "$LABFAULT" on "$COMPOSE_PROJECT_NAME"
   verify_degraded_direct
+  printf '%s\n' 'Investigation scenario prepared. Continue with the next observation.'
 }
 
 fault_off() {
