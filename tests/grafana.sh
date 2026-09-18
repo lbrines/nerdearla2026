@@ -87,9 +87,9 @@ require_pricing_error_rate_axis() {
   python3 -c '
 import json, sys
 panels = json.load(sys.stdin).get("dashboard", {}).get("panels", [])
-panel = next((panel for panel in panels if panel.get("id") == 4 and panel.get("title") == "Pricing error rate"), None)
+panel = next((panel for panel in panels if panel.get("id") == 4 and panel.get("title") == "Pricing error rate (30s)"), None)
 if panel is None:
-    raise SystemExit("Pricing error rate panel is missing")
+    raise SystemExit("Pricing error rate (30s) panel is missing")
 defaults = panel.get("fieldConfig", {}).get("defaults", {})
 expected = {"unit": "percentunit", "min": 0, "max": 1}
 if defaults != expected:
@@ -118,7 +118,7 @@ query_through_grafana() {
   python3 -c 'import json, sys; raise SystemExit(json.load(sys.stdin).get("status") != "success")' <<<"$response"
 }
 
-OVERVIEW_QUERIES='["sum(rate(checkout_requests_total{outcome=\"error\"}[30s])) / sum(rate(checkout_requests_total[30s]))", "histogram_quantile(0.95, sum by (le) (rate(checkout_request_duration_seconds_bucket[30s])))", "sum(rate(checkout_requests_total[30s]))", "sum(rate(pricing_requests_total{outcome=\"error\"}[30s])) / sum(rate(pricing_requests_total[30s]))", "histogram_quantile(0.95, sum by (le) (rate(pricing_request_duration_seconds_bucket[30s])))"]'
+OVERVIEW_QUERIES='["sum(rate(gateway_requests_total{outcome=\"error\"}[30s])) / sum(rate(gateway_requests_total[30s]))", "histogram_quantile(0.95, sum by (le) (rate(checkout_request_duration_seconds_bucket[30s])))", "sum(rate(gateway_requests_total[30s]))", "sum(rate(pricing_requests_total{outcome=\"error\"}[30s])) / sum(rate(pricing_requests_total[30s]))", "histogram_quantile(0.95, sum by (le) (rate(pricing_request_duration_seconds_bucket[30s])))"]'
 BY_INSTANCE_QUERIES='["sum by (checkout_instance) (rate(checkout_requests_total{outcome=\"error\"}[30s])) / sum by (checkout_instance) (rate(checkout_requests_total[30s]))", "sum by (checkout_instance) (rate(checkout_requests_total[30s]))", "histogram_quantile(0.95, sum by (le, checkout_instance) (rate(checkout_pricing_request_duration_seconds_bucket[30s])))"]'
 
 ensure_lab_projects_inactive

@@ -119,9 +119,9 @@ verify_timeout_debug() {
 }
 
 verify_degraded_direct() {
-  expect_status checkout-3 504 degraded-checkout-3 http://127.0.0.1:18083/checkout
-  verify_timeout_debug degraded-checkout-3-debug
-  expect_status pricing-api 200 degraded-pricing http://127.0.0.1:18080/healthz
+  expect_status checkout-3 504 control-probe-01 http://127.0.0.1:18083/checkout
+  verify_timeout_debug control-probe-02
+  expect_status pricing-api 200 control-probe-03 http://127.0.0.1:18080/healthz
 }
 
 verify_controlled_window() {
@@ -130,7 +130,7 @@ verify_controlled_window() {
 
   for ((request = 1; request <= 90; request++)); do
     if ! status="$(curl --silent --show-error --output /dev/null --write-out '%{http_code}' --max-time 2 \
-      -H "X-Request-ID: verify-$state-$request" http://127.0.0.1:18084/checkout)"; then
+      -H "X-Request-ID: control-window-$request" http://127.0.0.1:18084/checkout)"; then
       fail "gateway request $request failed"
       return 1
     fi
@@ -150,26 +150,26 @@ verify_controlled_window() {
         fail "healthy gateway results were 200=$successes 504=$timeouts; want 200=90 504=0"
         return 1
       fi
-      expect_status checkout-1 200 verify-healthy-checkout-1 http://127.0.0.1:18081/checkout || return $?
-      expect_status checkout-2 200 verify-healthy-checkout-2 http://127.0.0.1:18082/checkout || return $?
-      expect_status checkout-3 200 verify-healthy-checkout-3 http://127.0.0.1:18083/checkout || return $?
+      expect_status checkout-1 200 control-probe-11 http://127.0.0.1:18081/checkout || return $?
+      expect_status checkout-2 200 control-probe-12 http://127.0.0.1:18082/checkout || return $?
+      expect_status checkout-3 200 control-probe-13 http://127.0.0.1:18083/checkout || return $?
       ;;
     degraded)
       if [ "$successes" -ne 60 ] || [ "$timeouts" -ne 30 ]; then
         fail "degraded gateway results were 200=$successes 504=$timeouts; want 200=60 504=30"
         return 1
       fi
-      expect_status checkout-1 200 verify-degraded-checkout-1 http://127.0.0.1:18081/checkout || return $?
-      expect_status checkout-2 200 verify-degraded-checkout-2 http://127.0.0.1:18082/checkout || return $?
-      expect_status checkout-3 504 verify-degraded-checkout-3 http://127.0.0.1:18083/checkout || return $?
-      verify_timeout_debug verify-degraded-checkout-3-debug || return $?
+      expect_status checkout-1 200 control-probe-11 http://127.0.0.1:18081/checkout || return $?
+      expect_status checkout-2 200 control-probe-12 http://127.0.0.1:18082/checkout || return $?
+      expect_status checkout-3 504 verify-control-probe-01 http://127.0.0.1:18083/checkout || return $?
+      verify_timeout_debug verify-control-probe-02 || return $?
       ;;
     *)
       fail "unknown scenario state: $state"
       return 1
       ;;
   esac
-  expect_status pricing-api 200 "verify-$state-pricing" http://127.0.0.1:18080/healthz || return $?
+  expect_status pricing-api 200 "control-pricing" http://127.0.0.1:18080/healthz || return $?
 }
 
 VERIFY_LOADGEN_STOPPED=0

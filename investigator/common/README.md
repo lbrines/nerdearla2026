@@ -14,6 +14,12 @@ This one-shot workspace contains the common assets for both investigation profil
 | Prometheus | `http://prometheus:9090` and `bin/promq` |
 | Grafana | `http://grafana:3000` |
 
+## Shared evidence and output contract
+
+- Use logical service names in artifacts and retain `request_id` for correlations.
+- Omit internal IPs, container IDs or names, host paths, physical routes or mechanisms, and unnecessary environment details.
+- Dashboard values are 30s rates from 5s Prometheus scrapes; JSONL contains exact event records. Newest samples can lag by up to one scrape interval, and rate extrapolation and window boundaries mean dashboard rates are not exact log totals. Exact comparisons use counter deltas and log counts over explicitly shared boundaries.
+
 ## Workspace lifetime
 
 `/investigator-workspace` is writable only for the one-shot container. Changes made here are discarded when the container exits with `--rm`.

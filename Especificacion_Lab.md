@@ -655,12 +655,12 @@ Es el que debe estar abierto inicialmente.
 
 Paneles mínimos:
 
-### Checkout error rate agregado
+### Global gateway error ratio
 
 ```promql
-sum(rate(checkout_requests_total{outcome="error"}[30s]))
+sum(rate(gateway_requests_total{outcome="error"}[30s]))
 /
-sum(rate(checkout_requests_total[30s]))
+sum(rate(gateway_requests_total[30s]))
 ```
 
 Esperado durante incidente:
@@ -677,10 +677,10 @@ histogram_quantile(0.95,
 
 Debe mostrar degradación.
 
-### Request rate
+### Gateway/global request rate
 
 ```promql
-sum(rate(checkout_requests_total[30s]))
+sum(rate(gateway_requests_total[30s]))
 ```
 
 Confirma que el tráfico no desapareció.
@@ -827,11 +827,11 @@ Puede informar que existen tres réplicas, que pricing es una dependencia, los e
 
 OpenCode se ejecuta dentro del container **investigator**. El container pertenece a `operator_net`, no pertenece a `fault_net`, no monta el repositorio completo, directorios padre ni `/var/run/docker.sock`, no puede leer `compose.yaml`, resolver `toxiproxy` ni acceder a su API administrativa. Solo puede leer logs y consultar los servicios, Prometheus y Grafana permitidos.
 
-Internal Operator debe ser inaccesible desde investigator y OpenCode, incluso a través de `operator_net` desde el sandbox. No puede estar en el filesystem visible a participantes ni montarse nunca en investigator. Debe permanecer separado de los artefactos Baseline y Protocol.
+Internal Operator debe ser inaccesible desde investigator y OpenCode, incluso a través de `operator_net` desde el sandbox. Durante las corridas comparativas, no puede estar en el filesystem ni en una superficie montada disponible dentro del container investigator o de la sesión de participantes; tampoco puede montarse en investigator. Debe permanecer separado de los artefactos Baseline y Protocol.
 
-Durante las sesiones experimentales Baseline y Protocol debe existir una frontera técnicamente u operativamente verificable que impida al investigator obtener, desde repositorios públicos u otras fuentes externas, información que revele la implementación física, la inyección de falla, Toxiproxy, la instancia degradada, el happy path, material Internal Operator o la solución del escenario. Una instrucción como “no mirar GitHub” no satisface este contrato. Phase 7B puede resolverla mediante egress controlado, una allowlist mínima de proveedor/modelo, el retiro temporal de material público sensible, ejecución hermética o un equivalente verificable; Phase 7A no selecciona ni implementa ese mecanismo.
+El repositorio permanece público como artefacto completo de reproducibilidad para participantes. Baseline y Protocol conservan acceso irrestricto a Internet y la paridad experimental proviene de ese acceso idéntico y de superficies locales de sandbox idénticas, no de ocultar el repositorio público.
 
-La frontera de aislamiento, no una instrucción al modelo, protege la información física de la falla y la solución.
+La frontera de aislamiento local, no una instrucción al modelo, protege la información física de la falla y la solución. Ningún prompt, log ni artefacto visible al investigator debe exponer innecesariamente el mecanismo físico.
 
 ---
 
@@ -1323,7 +1323,7 @@ OpenCode solo debería cambiarlo si aparece un impedimento concreto.
 
 # 43. Estrategia de grabación (Internal Operator)
 
-Esta información es exclusiva de Internal Operator: no forma parte de Baseline ni Protocol, no es una tercera condición experimental y no puede estar disponible desde investigator, OpenCode, `operator_net` desde el sandbox ni el filesystem visible a participantes.
+Esta información es exclusiva de Internal Operator: no forma parte de Baseline ni Protocol, no es una tercera condición experimental y no puede estar disponible desde investigator, OpenCode, `operator_net` desde el sandbox ni el filesystem o una superficie montada del container investigator o de la sesión de participantes durante las corridas comparativas.
 
 La sesión real puede durar lo necesario. La grabación final del workshop mostrará solo decisiones relevantes.
 
@@ -1742,22 +1742,22 @@ Definir Baseline, Protocol e Internal Operator sin implementar perfiles físicos
 * Baseline y Protocol tienen las mismas capacidades técnicas, evidencia disponible, arquitectura lógica, incidente, estado inicial, herramientas, métricas, logs e interfaces;
 * la evidencia disponible al investigator permite localizar lógicamente la degradación en `checkout-3 → pricing-api`, sin revelar el mecanismo físico; Baseline y Protocol no están obligados a seguir esa ruta, alcanzar esa conclusión ni usarla como trayectoria de éxito prescrita;
 * la única diferencia deliberada es el método Protocol;
-* Internal Operator es inaccesible desde investigator, OpenCode, `operator_net` desde el sandbox y el filesystem visible a participantes, y nunca se monta en investigator;
+* Internal Operator es inaccesible desde investigator, OpenCode y `operator_net` desde el sandbox; durante las corridas comparativas tampoco está en el filesystem ni en superficies montadas del container investigator o de la sesión de participantes, y nunca se monta en investigator;
 * ningún artefacto de investigador expone la solución física, Toxiproxy ni el mecanismo de falla.
 
 ---
 
 ## Phase 7B — Implementación de perfiles
 
-Implementar la superficie Baseline, la superficie Protocol y el material Internal Operator separado y materializado. Implementar también la frontera de fuentes externas definida en la sección 22.
+Implementar la superficie Baseline, la superficie Protocol y el material Internal Operator separado y materializado. Mantener en ambos perfiles el mismo acceso irrestricto a Internet y las mismas superficies locales de sandbox definidas en la sección 22.
 
 ### Acceptance
 
-* se valida la igualdad exacta de capacidades técnicas, evidencia disponible y acceso entre Baseline y Protocol;
+* se valida la igualdad exacta de capacidades técnicas, evidencia disponible y acceso entre Baseline y Protocol, incluido el acceso irrestricto a Internet;
 * se valida que Protocol difiere de Baseline únicamente por su método de investigación;
 * se valida el aislamiento de Internal Operator respecto de todas las superficies visibles o montadas por investigator;
 * se valida que ningún perfil experimental revela la solución física, la inyección de falla, Toxiproxy, la instancia degradada, el happy path, material Internal Operator ni la solución del escenario;
-* se valida una frontera técnicamente u operativamente verificable que impide obtener desde fuentes externas la información restringida por la sección 22.
+* se valida que repo, scenario, Internal Operator, Docker socket y controles de falla no se montan localmente en ningún perfil, y que los prompts, logs y artefactos visibles no exponen innecesariamente el mecanismo físico.
 
 Phase 8 solo puede comenzar cuando esta acceptance pase.
 
@@ -1833,9 +1833,9 @@ Guardar grabación original sin editar.
 | Riesgo | Mitigación |
 | --- | --- |
 | El investigador encuentra Toxiproxy leyendo archivos | sandbox real, no instrucciones |
-| El investigador obtiene información sensible desde repositorios públicos u otras fuentes externas | frontera de fuentes externas técnicamente u operativamente verificable, no una instrucción al modelo |
+| El sandbox expone localmente el mecanismo físico o controles de falla | no montar repo, scenario, Internal Operator, Docker socket ni controles de falla; mantener prompts, logs y artefactos neutrales |
 | Baseline y Protocol reciben evidencia o acceso diferente | validar igualdad de capacidades y evidencia antes del dry run |
-| Internal Operator llega al sandbox o al filesystem de participantes | mantenerlo fuera de investigator, OpenCode y las rutas accesibles desde `operator_net` del sandbox |
+| Internal Operator llega al filesystem o a superficies montadas del container investigator o de la sesión de participantes durante las corridas comparativas | mantenerlo fuera de investigator, OpenCode y las rutas accesibles desde `operator_net` del sandbox |
 | Protocol se convierte en una ruta hacia la respuesta | prohibir orden, hipótesis, consultas, happy path y pistas específicas del escenario |
 | El modelo hace shotgun debugging | Protocol requiere hipótesis, predicción, prueba y falsificador |
 | Grafana revela checkout-3 demasiado pronto | Overview agregado como dashboard inicial |
@@ -1867,10 +1867,11 @@ El lab está terminado únicamente cuando todas estas afirmaciones son verdadera
 [ ] Grafana by-instance revela claramente checkout-3
 [ ] logs aportan evidencia sin revelar Toxiproxy
 [ ] investigator no puede acceder a la configuración de falla
-[ ] una frontera técnicamente u operativamente verificable impide a Baseline y Protocol obtener desde fuentes externas la información restringida por la sección 22
+[ ] Baseline y Protocol tienen acceso irrestricto e idéntico a Internet y superficies locales de sandbox idénticas; la paridad no depende de ocultar el repositorio público
+[ ] repo, scenario, Internal Operator, Docker socket y controles de falla no se montan localmente en investigator; prompts, logs y artefactos visibles no exponen innecesariamente el mecanismo físico
 [ ] Baseline y Protocol exponen las mismas capacidades, evidencia y acceso
 [ ] la única diferencia entre Baseline y Protocol es el método
-[ ] Internal Operator no es accesible desde investigator, OpenCode, operator_net del sandbox ni filesystem de participantes
+[ ] Internal Operator no es accesible desde investigator, OpenCode ni operator_net del sandbox, y durante las corridas comparativas no está en el filesystem ni en superficies montadas del container investigator o de la sesión de participantes
 [ ] Internal Operator nunca se monta en investigator
 [ ] Protocol puede registrar FACTS, CURRENT HYPOTHESES, NEXT TEST, EVIDENCE y UPDATED / DISCARDED con sus campos requeridos
 [ ] Baseline no requiere la estructura Protocol
@@ -1898,7 +1899,7 @@ runbook
 references
 ```
 
-La audiencia podrá ejecutar el escenario después.
+La audiencia podrá ejecutar el escenario después. El repositorio público es el artefacto completo de reproducibilidad; no se monta dentro de investigator y no se oculta para establecer la paridad experimental.
 
 Durante la sesión no hacemos un tour del repo.
 

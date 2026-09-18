@@ -11,7 +11,7 @@
   "panels": [
     {
       "id": 1,
-      "title": "Checkout error rate",
+      "title": "Gateway error ratio (30s)",
       "type": "timeseries",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "percentunit" }, "overrides": [] },
@@ -19,13 +19,13 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(checkout_requests_total{outcome=\"error\"}[30s])) / sum(rate(checkout_requests_total[30s]))"
+          "expr": "sum(rate(gateway_requests_total{outcome=\"error\"}[30s])) / sum(rate(gateway_requests_total[30s]))"
         }
       ]
     },
     {
       "id": 2,
-      "title": "Checkout p95 latency",
+      "title": "Checkout p95 latency (30s)",
       "type": "timeseries",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },
@@ -39,7 +39,7 @@
     },
     {
       "id": 3,
-      "title": "Checkout request rate",
+      "title": "Gateway request rate (30s)",
       "type": "timeseries",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "reqps" }, "overrides": [] },
@@ -47,13 +47,13 @@
       "targets": [
         {
           "refId": "A",
-          "expr": "sum(rate(checkout_requests_total[30s]))"
+          "expr": "sum(rate(gateway_requests_total[30s]))"
         }
       ]
     },
     {
       "id": 4,
-      "title": "Pricing error rate",
+      "title": "Pricing error rate (30s)",
       "type": "timeseries",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "percentunit", "min": 0, "max": 1 }, "overrides": [] },
@@ -67,7 +67,7 @@
     },
     {
       "id": 5,
-      "title": "Pricing p95 latency",
+      "title": "Pricing p95 latency (30s)",
       "type": "timeseries",
       "datasource": { "type": "prometheus", "uid": "prometheus" },
       "fieldConfig": { "defaults": { "unit": "s" }, "overrides": [] },

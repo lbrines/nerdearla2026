@@ -130,6 +130,10 @@ if [ "$baseline_user" != "$protocol_user" ]; then
   fail 'Baseline and Protocol do not run as the same user'
 fi
 
+for marker in request_id READ-ONLY 'LOGICAL DIAGNOSIS' 'PHYSICAL MECHANISM' 'PENDING APPROVAL'; do
+  grep -Fq "$marker" investigator/profiles/protocol/INVESTIGATION_PROTOCOL.md || fail "Protocol is missing $marker"
+done
+
 for profile in investigator-baseline investigator-protocol; do
   if ! run_profile "$profile" <<'INVESTIGATOR'
 set -euo pipefail
@@ -138,6 +142,7 @@ for tool in bash curl jq getent dig grep rg opencode; do
   command -v "$tool" >/dev/null
 done
 test -r /var/log/lab
+test -r /investigator-workspace/INCIDENT.md
 test -w "$HOME/.local/share/opencode"
 INVESTIGATOR
   then

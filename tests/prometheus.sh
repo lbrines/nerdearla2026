@@ -9,7 +9,7 @@ PROMETHEUS_URL="http://127.0.0.1:19090"
 PROMETHEUS_TIMEOUT_SECONDS=45
 trap on_exit EXIT
 
-GATEWAY_ERROR_RATE='sum(rate(gateway_requests_total{outcome="error"}[30s]))'
+GATEWAY_ERROR_RATIO='sum(rate(gateway_requests_total{outcome="error"}[30s])) / sum(rate(gateway_requests_total[30s]))'
 CHECKOUT_ERROR_RATE='sum(rate(checkout_requests_total{outcome="error"}[30s])) / sum(rate(checkout_requests_total[30s]))'
 CHECKOUT_ERROR_RATE_BY_INSTANCE='sum by (checkout_instance) (rate(checkout_requests_total{outcome="error"}[30s])) / sum by (checkout_instance) (rate(checkout_requests_total[30s]))'
 PRICING_ERROR_RATE='sum(rate(pricing_requests_total{outcome="error"}[30s])) / sum(rate(pricing_requests_total[30s]))'
@@ -99,7 +99,7 @@ wait_for_scalar 'checkout-gateway scrape target' 'sum(up{job="checkout-gateway"}
 wait_for_scalar 'pricing-api scrape target' 'sum(up{job="pricing-api"})' 1 1
 wait_for_scalar 'checkout scrape targets' 'sum(up{job="checkout-api"})' 3 3
 
-wait_for_scalar 'healthy gateway error rate' "$GATEWAY_ERROR_RATE" 0 0
+wait_for_scalar 'healthy gateway error ratio' "$GATEWAY_ERROR_RATIO" 0 0
 wait_for_scalar 'healthy checkout error rate' "$CHECKOUT_ERROR_RATE" 0 0
 wait_for_instance_value 'healthy checkout-1 error rate' "$CHECKOUT_ERROR_RATE_BY_INSTANCE" checkout-1 0 0
 wait_for_instance_value 'healthy checkout-2 error rate' "$CHECKOUT_ERROR_RATE_BY_INSTANCE" checkout-2 0 0
@@ -108,6 +108,7 @@ wait_for_scalar 'healthy pricing error rate' "$PRICING_ERROR_RATE" 0 0
 wait_for_scalar 'healthy pricing p95' "$PRICING_P95" 0 0.1
 
 "$LABFAULT" on "$COMPOSE_PROJECT_NAME"
+wait_for_scalar 'degraded gateway error ratio' "$GATEWAY_ERROR_RATIO" 0.30 0.36
 wait_for_scalar 'degraded checkout error rate' "$CHECKOUT_ERROR_RATE" 0.30 0.36
 wait_for_instance_value 'degraded checkout-1 error rate' "$CHECKOUT_ERROR_RATE_BY_INSTANCE" checkout-1 0 0.02
 wait_for_instance_value 'degraded checkout-2 error rate' "$CHECKOUT_ERROR_RATE_BY_INSTANCE" checkout-2 0 0.02
