@@ -2,6 +2,9 @@
 
 ## CURRENT HYPOTHESES
 
+| ID | Hypothesis | Status | Evidence | Next action |
+|---|---|---|---|---|
+
 ## NEXT TEST
 Hypothesis:
 Prediction:
