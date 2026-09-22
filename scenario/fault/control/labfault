@@ -39,7 +39,7 @@ pricing_toxic_exists() {
 
 remove_pricing_toxic_if_present() {
   if pricing_toxic_exists; then
-    compose_toxiproxy toxic remove --toxicName pricing-latency pricing
+    compose_toxiproxy toxic remove --toxicName pricing-latency pricing >/dev/null
   fi
 }
 
@@ -47,10 +47,12 @@ case "$COMMAND" in
   on)
     remove_pricing_toxic_if_present
     compose_toxiproxy toxic add --type latency --downstream --toxicName pricing-latency --toxicity 1.0 \
-      --attribute latency=800 --attribute jitter=0 pricing
+      --attribute latency=800 --attribute jitter=0 pricing >/dev/null
+    printf '%s\n' 'Inicio de la condición degradada.'
     ;;
   off)
     remove_pricing_toxic_if_present
+    printf '%s\n' 'Fin de la condición degradada.'
     ;;
   status)
     if pricing_toxic_exists; then

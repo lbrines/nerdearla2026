@@ -6,4 +6,6 @@
 /.lab-data/
 /.opencode-data/
 /investigation-output/
+/investigator-output/*
+!/investigator-output/.gitkeep
 /auth.json
